@@ -1,3 +1,10 @@
+//#include"address_map_arm.h"/*function prototypes*/
+int HEX3_HEX0_BASE = 0xFF200020;
+int HEX5_HEX4_BASE = 0xFF200030;
+PS2_BASE = 0xFF200100;
+void HEX_PS2(char,char,char);/********************************************************************************This program demonstrates use of the PS/2 port by displaying the last three*bytes of data received from the PS/2 port on the HEX displays.******************************************************************************/
+
+
 /* This files provides address values that exist in the system */
 
 #define SDRAM_BASE            0xC0000000
@@ -33,7 +40,7 @@
 #define RESOLUTION_Y 240
 
 /* Constants for animation */
-#define BOX_LEN 4
+#define BOX_LEN 2
 #define NUM_BOXES 8
 
 #define FALSE 0
@@ -42,17 +49,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// Begin part3.c code for Lab 7
+// Begin part1.s for Lab 7
+void plot_pixel(int x, int y, short int line_color);
+volatile int pixel_buffer_start; // global variable
 
-volatile int pixel_buffer_start; // global variable	
-	
-void plot_pixel(int x, int y, short int line_color)
-{
-    *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
-}
-	
-
-	
 int abs(int a) {
 	if (a < 0) return -a;
 	return a;
@@ -113,60 +113,112 @@ void clear_screen() {
 	}
 }
 
-void wait_for_vsync() {
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	register int status;
-	*pixel_ctrl_ptr = 1;
-	
-	status = *(pixel_ctrl_ptr+3);
-	while ((status & 0x01) != 0) {
-		status = *(pixel_ctrl_ptr + 3);
-	}
-}	
-	
 
-
-volatile int pixel_buffer_start; // global variable
-
-int main(void)
+/*int main(void)
 {
-	srand(time(0));
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-
-    /* set front pixel buffer to start of FPGA On-chip memory */
-    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
-                                        // back buffer
-    /* now, swap the front/back buffers, to set the front buffer location */
-    wait_for_vsync();
-    /* initialize a pointer to the pixel buffer, used by drawing functions */
+    /* Read location of the pixel buffer from the pixel buffer controller 
     pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
-    /* set back pixel buffer to start of SDRAM memory */
-    *(pixel_ctrl_ptr + 1) = 0xC0000000;
-    pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-    //Main loop
-	while (1)
-    {
 
-        clear_screen();
+    clear_screen();
+    draw_line(0, 0, 150, 150, 0x001F);   // this line is blue
+    draw_line(150, 150, 319, 0, 0x07E0); // this line is green
+    draw_line(0, 239, 319, 239, 0xF800); // this line is red
+    draw_line(319, 0, 0, 239, 0xF81F);   // this line is a pink color
+}*/
 
+// code not shown for clear_screen() and draw_line() subroutines
 
-		
-
-		
-
-
-
-
-		
-
-		wait_for_vsync();
-         // swap front and back buffers on VGA vertical sync
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
-		
-    }
-	
+void plot_pixel(int x, int y, short int line_color)
+{
+    *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
 
-// code for subroutines
+void drawBox (int x, int y, int color) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; i++) {
+			if (x+i < RESOLUTION_X && y+j < RESOLUTION_Y)plot_pixel(x+i, y+j, color);
+		}
+	}
+}
 
+
+
+
+
+
+
+
+
+
+int main(void) {
+	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+    /* Read location of the pixel buffer from the pixel buffer controller */
+    pixel_buffer_start = *pixel_ctrl_ptr;
+	
+	int x = RESOLUTION_X/2;
+	int y = RESOLUTION_Y/2;
+	clear_screen();
+	volatile int*PS2_ptr = (int*)PS2_BASE;
+	int PS2_data, RVALID;
+	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
+	*(PS2_ptr) = 0xFF;// reset
+	while(1) {
+		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
+		RVALID   = PS2_data & 0x8000;// extract the RVALID field
+		if(RVALID) {
+			/*shift the next data byte into the display*/
+			byte1 = byte2;
+			byte2 = byte3;
+			byte3 = PS2_data & 0xFF;
+			HEX_PS2(byte1, byte2, byte3);
+			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
+				*(PS2_ptr) = 0xF4;
+		//drawBox((int)byte2, (int)byte3, RED);
+			if (((byte1 >> 4)  & 0x01)) {
+				
+				//x+= byte2;
+				x--;
+			}
+			else {
+				//x-= byte2;
+				x++;
+			}
+			if (((byte1 >> 5)  & 0x01)) {//y+= byte3;
+			y--;
+			}
+			else {
+				y++;
+				//y-= byte3;
+			}
+			if (x > RESOLUTION_X) x = RESOLUTION_X;
+			if (x < 0) x = 0;
+			if (y > RESOLUTION_Y) y = RESOLUTION_Y;
+			if (y < 0) y = 0;
+			printf("X: %d\nY: %d\n", x, y); 
+			//drawBox((int)x, (int)y, RED);
+		}
+		//
+	}
+}/*****************************************************************************************Subroutine to show a string of HEX data on the HEX displays****************************************************************************************/
+void HEX_PS2(char b1,char b2,char b3) {
+	volatile int*HEX3_HEX0_ptr = (int*)HEX3_HEX0_BASE;
+	volatile int*HEX5_HEX4_ptr = (int*)HEX5_HEX4_BASE;/*SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in*a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F*/
+	unsigned char seven_seg_decode_table[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
+	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	unsigned int shift_buffer, nibble;
+	unsigned char code;
+	int i;
+	shift_buffer = (b1 << 16) | (b2 << 8) | b3;
+	for(i = 0; i < 6; ++i) {
+		nibble = shift_buffer & 0x0000000F;// character is in rightmost nibble
+		code   = seven_seg_decode_table[nibble];
+		hex_segs[i]  = code;
+		shift_buffer = shift_buffer >> 4;
+	}/*drive the hex displays*/
+	*(HEX3_HEX0_ptr) =*(int*)(hex_segs);
+	*(HEX5_HEX4_ptr) =*(int*)(hex_segs + 4);
+}
+	
+	
