@@ -335,7 +335,7 @@ int main(void) {
 	int count = 0;
 	while(1) {
 		
-		HEX_PS2(byte1, 0, 0);
+		//HEX_PS2(byte1, 0, 0);
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 		RVALID   = PS2_data & 0x8000;// extract the RVALID field
 		if(RVALID) {
@@ -343,7 +343,8 @@ int main(void) {
 			byte1 = byte2;
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
-			//HEX_PS2(byte1, byte2, byte3);
+			
+			HEX_PS2(score, 0, 0);
 			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 				*(PS2_ptr) = 0xF4;
 			//If A is pressed
@@ -377,6 +378,7 @@ int main(void) {
 			//If space is pressed
 			if (byte3 == 41) {	
 				if (!gameCursor.shot) gameCursor.shot = 1;
+				checkShot(&gameCursor);
 			}
 			renderTarget(&TARGETS[0], it > 1);
 			renderCursor(&gameCursor, it > 1);
