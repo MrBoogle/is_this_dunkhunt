@@ -182,7 +182,7 @@ int checkShot(cursor *check) {
 	return 0;
 }
 
-void renderCursor(cursor* gameC, int valid) {
+void renderCursor(cursor* gameC, int valid) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
 	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
@@ -205,7 +205,7 @@ void renderCursor(cursor* gameC, int valid) {
 
 
 
-void renderTarget(target* gameT, int valid) {
+void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
 	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
