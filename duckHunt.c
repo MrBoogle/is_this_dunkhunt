@@ -136,6 +136,12 @@ void initCursor(cursor* gameC) {
 	
 }
 
+void flushPS2() {
+	volatile int* PS2_ptr = (int*)PS2_BASE;
+	//*(PS2_ptr) = 0xFF;
+	int PS2_data =*(PS2_ptr);
+	int byte3 = PS2_data & 0xFF;
+}
 
 int checkShot(cursor *check) {
 	
@@ -161,11 +167,13 @@ void renderCursor(cursor* gameC, int valid) {
 		gameC->toDelete[i] = gameC->previous[i];
 		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
 		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
+		flushPS2();
 	}
 
 	//Draw current
 	for (int i = 0; i < n; i++) {
 		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, gameC->image[i].color);
+		flushPS2();
 	}
 }
 
@@ -323,10 +331,11 @@ int main(void) {
 			
 			
 			it++;
-		}
-		wait_for_vsync();
+			wait_for_vsync();
          // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+		}
+		
 
 		
 	}
