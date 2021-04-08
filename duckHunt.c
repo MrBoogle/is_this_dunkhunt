@@ -110,6 +110,7 @@ struct cursor {
 	int yPos;
 	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
 	point image[5];
+	point previous[5];
 	point toDelete[5];
 };
 
@@ -120,6 +121,21 @@ void initTargets() {
 	}
 	
 }
+
+point cursorImage[8] = {{0, 2, BLUE}, {0, 1, BLUE}, {-2, 0, BLUE}, {-1, 0, BLUE}, {1, 0, BLUE}, {2, 0, BLUE}, {0, -1, BLUE}, {0, -2, BLUE}};
+
+void initCursor(cursor* gameC) {
+	//Initialize cursor
+	gameC->xPos = RESOLUTION_X/2;
+	gameC->yPos = RESOLUTION_Y/2;
+	for (int i = 0; i < 8; i++) {
+		gameC->image[i] = cursorImage[i];
+		gameC->previous[i] = cursorImage[i];
+		gameC->toDelete[i] = cursorImage[i];
+	}
+	
+}
+
 
 int checkShot(cursor *check) {
 	
@@ -135,15 +151,19 @@ int checkShot(cursor *check) {
 	return 0;
 }
 
-void renderer(point* draw, point* toDel) {
-	for (int i = 0; i < sizeof(toDel)/sizeof(toDel[0]); i++){
-	
-	}
-	for (int i = 0; i < sizeof(toDel)/sizeof(toDel[0]); i++) {
+void renderer(point* draw, point* toDel, point* prev, int x, int y) {
+	int n = sizeof(toDel)/sizeof(toDel[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
 		plot_pixel(toDel[i].xPos, toDel[i].yPos, toDel[i].color);
+		toDel[i] = prev[i];
+		
 	}
-	for (int i = 0; i < sizeof(draw)/sizeof(draw[0]); i++) {
-		plot_pixel(draw[i].xPos, draw[i].yPos, draw[i].color);
+
+	//Draw current
+	for (int i = 0; i < n; i++) {
+		plot_pixel(x + draw[i].xPos, y + draw[i].yPos, draw[i].color);
 	}
 }
 
@@ -226,6 +246,7 @@ int main(void) {
 	gameCursor.xPos = RESOLUTION_X/2;
 	gameCursor.yPos = RESOLUTION_Y/2;
 	gameCursor.shot = 0;
+	initCursor(&gameCursor);
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
@@ -244,6 +265,13 @@ int main(void) {
 	int PS2_data, RVALID;
 	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
 	*(PS2_ptr) = 0xFF;// reset
+	
+	for (int k = 0; k < 8; k++) {
+		plot_pixel(gameCursor.xPos + gameCursor.image[k].xPos, gameCursor.yPos + gameCursor.image[k].yPos, gameCursor.image[k].color);
+	}
+	
+	
+	
 	while(1) {
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 		RVALID   = PS2_data & 0x8000;// extract the RVALID field
@@ -294,7 +322,7 @@ int main(void) {
 		wait_for_vsync();
          // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-		plot_pixel(gameCursor.xPos, gameCursor.yPos, RED);
+
 		
 	}
 }
