@@ -39,7 +39,7 @@ void HEX_PS2(char,char,char);/**************************************************
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
-#define CURSOR_CLR RED
+#define CURSOR_CLR 0
 /* Constants for animation */
 #define BOX_LEN 4
 #define NUM_BOXES 8
@@ -96,9 +96,9 @@ struct target {
 	int yPos;
 	int shot; //1 if shot, 0 if not shot
 	int spawned; //Only draw and register shots when set to 1
-	point image[5];
-	point previous[5];
-	point toDelete[5];
+	point image[25];
+	point previous[25];
+	point toDelete[25];
 
 };
 
@@ -125,6 +125,16 @@ void initTargets() {
 
 point cursorImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
 
+point targetImage[25] = {
+	{-2, 2, RED}, {-1, 2, RED}, {0, 2, RED}, {1, 2, RED}, {2, 2, RED},	
+	{-2, 1, RED}, {-1, 1, WHITE}, {0, 1, WHITE}, {1, 1, WHITE}, {2, 1, RED},
+	{-2, 0, RED}, {-1, 0, WHITE}, {0, 0, RED}, {1, 0, WHITE}, {2, 0, RED},
+	{-2, -1, RED}, {-1, -1, WHITE}, {0, -1, WHITE}, {1, -1, WHITE}, {2, -1, RED},
+	{-2, -2, RED}, {-1, -2, RED}, {0, -2, RED}, {1, -2, RED}, {2, -2, RED}
+	
+};
+
+
 void initCursor(cursor* gameC) {
 	//Initialize cursor
 	gameC->xPos = RESOLUTION_X/2;
@@ -136,6 +146,20 @@ void initCursor(cursor* gameC) {
 	}
 	
 }
+
+void initTarget(target* gameT) {
+	//Initialize cursor
+	gameT->xPos = RESOLUTION_X/2+40;
+	gameT->yPos = RESOLUTION_Y/2+40;
+	for (int i = 0; i < 25; i++) {
+		gameT->image[i] = targetImage[i];
+		gameT->previous[i] = targetImage[i];
+		gameT->toDelete[i] = targetImage[i];
+	}
+	
+}
+
+
 
 void flushPS2() {
 	volatile int* PS2_ptr = (int*)PS2_BASE;
@@ -283,6 +307,9 @@ int main(void) {
 	gameCursor.yPos = RESOLUTION_Y/2;
 	gameCursor.shot = 0;
 	initCursor(&gameCursor);
+	
+	initTarget(&TARGETS[0]);
+	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
@@ -351,8 +378,9 @@ int main(void) {
 			if (byte3 == 41) {	
 				if (!gameCursor.shot) gameCursor.shot = 1;
 			}
-			//drawBox(gameCursor.xPos, gameCursor.yPos, RED);
+			renderTarget(&TARGETS[0], it > 1);
 			renderCursor(&gameCursor, it > 1);
+			
 			
 			
 			it++;
