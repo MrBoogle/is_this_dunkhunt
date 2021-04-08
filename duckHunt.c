@@ -40,7 +40,7 @@ void HEX_PS2(char,char,char);/**************************************************
 #define RESOLUTION_Y 240
 
 /* Constants for animation */
-#define BOX_LEN 2
+#define BOX_LEN 4
 #define NUM_BOXES 8
 
 #define FALSE 0
@@ -63,6 +63,54 @@ void swap (int *a, int *b) {
 	*a = *b;
 	*b = temp;
 }
+
+//Each point holds the x and y location of a color to be drawn
+struct point {
+	int xPos;
+	int yPos;
+	int color;
+};
+
+typedef struct point point;
+
+struct target {
+	int xPos;
+	int yPos;
+	int shot; //1 if shot, 0 if not shot
+	int spawned; //Only draw and register shots when set to 1
+	point image[5];
+	point toDelete[5];
+
+};
+
+typedef struct target target;
+
+target TARGETS[NUM_BOXES];
+
+struct cursor {
+	int xPos;
+	int yPos;
+	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
+	point image[5];
+	point toDelete[5];
+};
+
+void initTargets() {
+	for (int i = 0; i < NUM_BOXES; i++) {
+		//Initialize target  
+	}
+	
+}
+
+void renderer(point* draw, point* toDel) {
+	for (int i = 0; i < sizeof(toDel)/sizeof(toDel[0]); i++) {
+		plot_pixel(toDel[i].xPos, toDel[i].yPos, toDel[i].color);
+	}
+	for (int i = 0; i < sizeof(draw)/sizeof(draw[0]); i++) {
+		plot_pixel(draw[i].xPos, draw[i].yPos, draw[i].color);
+	}
+}
+
 
 void draw_line(int x1, int y1, int x2, int y2, short int color) {
 	int is_steep;// = abs(y2 - y1) > abs(x2 - x1)? 1: 0;
