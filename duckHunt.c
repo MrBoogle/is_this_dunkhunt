@@ -53,6 +53,10 @@ void HEX_PS2(char,char,char);/**************************************************
 void plot_pixel(int x, int y, short int line_color);
 volatile int pixel_buffer_start; // global variable
 
+int score = 0;
+int highScore = 0;
+int strike = 0;
+
 
 void wait_for_vsync() {
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -92,6 +96,7 @@ struct target {
 	int shot; //1 if shot, 0 if not shot
 	int spawned; //Only draw and register shots when set to 1
 	point image[5];
+	point previous[5];
 	point toDelete[5];
 
 };
@@ -116,7 +121,24 @@ void initTargets() {
 	
 }
 
+int checkShot(cursor *check) {
+	
+	for (int i = 0; i < NUM_BOXES; i++) {
+		int deltaX = abs((*check).xPos - TARGETS[i].xPos);
+		int deltaY = abs(check->yPos - TARGETS[i].yPos);
+		if (deltaY < 3 && deltaX < 3) {
+			score++;
+			return 1;
+		} 
+	}
+	strike++;
+	return 0;
+}
+
 void renderer(point* draw, point* toDel) {
+	for (int i = 0; i < sizeof(toDel)/sizeof(toDel[0]); i++){
+	
+	}
 	for (int i = 0; i < sizeof(toDel)/sizeof(toDel[0]); i++) {
 		plot_pixel(toDel[i].xPos, toDel[i].yPos, toDel[i].color);
 	}
@@ -217,8 +239,6 @@ int main(void) {
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 	
-	int x = RESOLUTION_X/2;
-	int y = RESOLUTION_Y/2;
 	clear_screen();
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
