@@ -95,6 +95,7 @@ struct cursor {
 	point toDelete[5];
 };
 
+typedef struct cursor cursor;
 void initTargets() {
 	for (int i = 0; i < NUM_BOXES; i++) {
 		//Initialize target  
@@ -162,20 +163,6 @@ void clear_screen() {
 }
 
 
-/*int main(void)
-{
-    volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    /* Read location of the pixel buffer from the pixel buffer controller 
-    pixel_buffer_start = *pixel_ctrl_ptr;
-
-    clear_screen();
-    draw_line(0, 0, 150, 150, 0x001F);   // this line is blue
-    draw_line(150, 150, 319, 0, 0x07E0); // this line is green
-    draw_line(0, 239, 319, 239, 0xF800); // this line is red
-    draw_line(319, 0, 0, 239, 0xF81F);   // this line is a pink color
-}*/
-
-// code not shown for clear_screen() and draw_line() subroutines
 
 void plot_pixel(int x, int y, short int line_color)
 {
@@ -200,6 +187,10 @@ void drawBox (int x, int y, int color) {
 
 
 int main(void) {
+	cursor gameCursor;
+	gameCursor.xPos = RESOLUTION_X/2;
+	gameCursor.yPos = RESOLUTION_Y/2;
+	gameCursor.shot = 0;
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
     /* Read location of the pixel buffer from the pixel buffer controller */
@@ -223,33 +214,43 @@ int main(void) {
 			HEX_PS2(byte1, byte2, byte3);
 			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 				*(PS2_ptr) = 0xF4;
-		//drawBox((int)byte2, (int)byte3, RED);
-			if (((byte1 >> 4)  & 0x01)) {
-				
-				//x+= byte2;
-				x--;
+			//If A is pressed
+				if (byte3 == 28) {
+				gameCursor.xPos--;
+				if (gameCursor.xPos < 0) {
+					gameCursor.xPos = 0;
+				}
 			}
-			else {
-				//x-= byte2;
-				x++;
+			//If D is pressed
+			if (byte3 == 35) {
+				gameCursor.xPos++;
+				if (gameCursor.xPos > RESOLUTION_X-1) {
+					gameCursor.xPos = RESOLUTION_X-1;
+				}
 			}
-			if (((byte1 >> 5)  & 0x01)) {//y+= byte3;
-			y--;
+			//If W is pressed
+			if (byte3 == 27) {
+				gameCursor.yPos++;
+				if (gameCursor.yPos > RESOLUTION_Y-1) {
+					gameCursor.yPos = RESOLUTION_Y-1;
+				}
 			}
-			else {
-				y++;
-				//y-= byte3;
+			//If S is pressed
+			if (byte3 == 29) {
+				gameCursor.yPos--;
+				if (gameCursor.yPos < 0) {
+					gameCursor.yPos = 0;
+				}
 			}
-			if (x > RESOLUTION_X) x = RESOLUTION_X;
-			if (x < 0) x = 0;
-			if (y > RESOLUTION_Y) y = RESOLUTION_Y;
-			if (y < 0) y = 0;
-			printf("X: %d\nY: %d\n", x, y); 
-			//drawBox((int)x, (int)y, RED);
+			//drawBox(gameCursor.xPos, gameCursor.yPos, RED);
+			
+			
 		}
-		//
+		plot_pixel(gameCursor.xPos, gameCursor.yPos, RED);
+		
 	}
-}/*****************************************************************************************Subroutine to show a string of HEX data on the HEX displays****************************************************************************************/
+}
+
 void HEX_PS2(char b1,char b2,char b3) {
 	volatile int*HEX3_HEX0_ptr = (int*)HEX3_HEX0_BASE;
 	volatile int*HEX5_HEX4_ptr = (int*)HEX5_HEX4_BASE;/*SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in*a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F*/
