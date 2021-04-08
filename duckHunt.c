@@ -53,6 +53,19 @@ void HEX_PS2(char,char,char);/**************************************************
 void plot_pixel(int x, int y, short int line_color);
 volatile int pixel_buffer_start; // global variable
 
+
+void wait_for_vsync() {
+	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	register int status;
+	*pixel_ctrl_ptr = 1;
+	
+	status = *(pixel_ctrl_ptr+3);
+	while ((status & 0x01) != 0) {
+		status = *(pixel_ctrl_ptr + 3);
+	}
+}
+
+
 int abs(int a) {
 	if (a < 0) return -a;
 	return a;
@@ -193,8 +206,16 @@ int main(void) {
 	gameCursor.shot = 0;
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-    /* Read location of the pixel buffer from the pixel buffer controller */
+    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
+                                        // back buffer
+    /* now, swap the front/back buffers, to set the front buffer location */
+    wait_for_vsync();
+    /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
+    clear_screen(); // pixel_buffer_start points to the pixel buffer
+    /* set back pixel buffer to start of SDRAM memory */
+    *(pixel_ctrl_ptr + 1) = 0xC0000000;
+    pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 	
 	int x = RESOLUTION_X/2;
 	int y = RESOLUTION_Y/2;
@@ -242,10 +263,17 @@ int main(void) {
 					gameCursor.yPos = 0;
 				}
 			}
+			//If space is pressed
+			if (byte3 == 41) {	
+				if (!gameCursor.shot) gameCursor.shot = 1;
+			}
 			//drawBox(gameCursor.xPos, gameCursor.yPos, RED);
 			
 			
 		}
+		wait_for_vsync();
+         // swap front and back buffers on VGA vertical sync
+        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 		plot_pixel(gameCursor.xPos, gameCursor.yPos, RED);
 		
 	}
