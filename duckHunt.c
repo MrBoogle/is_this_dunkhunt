@@ -39,6 +39,7 @@ void HEX_PS2(char,char,char);/**************************************************
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
+#define CURSOR_CLR RED
 /* Constants for animation */
 #define BOX_LEN 4
 #define NUM_BOXES 8
@@ -122,7 +123,7 @@ void initTargets() {
 	
 }
 
-point cursorImage[8] = {{0, 2, BLUE}, {0, 1, BLUE}, {-2, 0, BLUE}, {-1, 0, BLUE}, {1, 0, BLUE}, {2, 0, BLUE}, {0, -1, BLUE}, {0, -2, BLUE}};
+point cursorImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
 
 void initCursor(cursor* gameC) {
 	//Initialize cursor
@@ -162,17 +163,41 @@ void renderCursor(cursor* gameC, int valid) {
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
 	for (int i = 0; i < n; i++){
-		if (valid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, 0);
+		if (valid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, gameC->toDelete[i].color);
 		//plot_pixel(0, 0, RED);
 		gameC->toDelete[i] = gameC->previous[i];
 		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
 		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
+		gameC->previous[i].color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
 		flushPS2();
 	}
 
 	//Draw current
 	for (int i = 0; i < n; i++) {
 		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, gameC->image[i].color);
+		flushPS2();
+	}
+}
+
+
+
+void renderTarget(target* gameT, int valid) {
+	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
+		if (valid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
+		//plot_pixel(0, 0, RED);
+		gameT->toDelete[i] = gameT->previous[i];
+		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
+		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
+		gameT->previous[i].color = *(short int *)(pixel_buffer_start + (gameT->yPos + gameT->image[i].yPos << 10) + (gameT->xPos + gameT->image[i].xPos << 1));
+		flushPS2();
+	}
+
+	//Draw current
+	for (int i = 0; i < n; i++) {
+		plot_pixel(gameT->xPos + gameT->image[i].xPos, gameT->yPos + gameT->image[i].yPos, gameT->image[i].color);
 		flushPS2();
 	}
 }
@@ -219,10 +244,10 @@ void draw_line(int x1, int y1, int x2, int y2, short int color) {
 	}
 }
 
-void clear_screen() {
+void clear_screen(int color) {
 	for (int x = 0; x < 320; x++) {
 		for (int y = 0; y < 240; y++) {
-			*(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = 0x0;
+			*(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = color;
 		}
 	}
 }
@@ -266,12 +291,12 @@ int main(void) {
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
+    clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
     /* set back pixel buffer to start of SDRAM memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 	
-	clear_screen();
+	clear_screen(CYAN);
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
 	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
