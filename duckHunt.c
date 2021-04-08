@@ -109,9 +109,9 @@ struct cursor {
 	int xPos;
 	int yPos;
 	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
-	point image[5];
-	point previous[5];
-	point toDelete[5];
+	point image[8];
+	point previous[8];
+	point toDelete[8];
 };
 
 typedef struct cursor cursor;
@@ -151,19 +151,21 @@ int checkShot(cursor *check) {
 	return 0;
 }
 
-void renderer(point* draw, point* toDel, point* prev, int x, int y) {
-	int n = sizeof(toDel)/sizeof(toDel[0]);
+void renderCursor(cursor* gameC, int valid) {
+	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
 	for (int i = 0; i < n; i++){
-		plot_pixel(toDel[i].xPos, toDel[i].yPos, toDel[i].color);
-		toDel[i] = prev[i];
-		
+		if (valid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, 0);
+		//plot_pixel(0, 0, RED);
+		gameC->toDelete[i] = gameC->previous[i];
+		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
+		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
 	}
 
 	//Draw current
 	for (int i = 0; i < n; i++) {
-		plot_pixel(x + draw[i].xPos, y + draw[i].yPos, draw[i].color);
+		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, gameC->image[i].color);
 	}
 }
 
@@ -242,6 +244,7 @@ void drawBox (int x, int y, int color) {
 
 
 int main(void) {
+	int it = 0;
 	cursor gameCursor;
 	gameCursor.xPos = RESOLUTION_X/2;
 	gameCursor.yPos = RESOLUTION_Y/2;
@@ -266,13 +269,13 @@ int main(void) {
 	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
 	*(PS2_ptr) = 0xFF;// reset
 	
-	for (int k = 0; k < 8; k++) {
-		plot_pixel(gameCursor.xPos + gameCursor.image[k].xPos, gameCursor.yPos + gameCursor.image[k].yPos, gameCursor.image[k].color);
-	}
 	
 	
 	
+	int count = 0;
 	while(1) {
+		
+		HEX_PS2(byte1, 0, 0);
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 		RVALID   = PS2_data & 0x8000;// extract the RVALID field
 		if(RVALID) {
@@ -280,7 +283,7 @@ int main(void) {
 			byte1 = byte2;
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
-			HEX_PS2(byte1, byte2, byte3);
+			//HEX_PS2(byte1, byte2, byte3);
 			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 				*(PS2_ptr) = 0xF4;
 			//If A is pressed
@@ -316,8 +319,10 @@ int main(void) {
 				if (!gameCursor.shot) gameCursor.shot = 1;
 			}
 			//drawBox(gameCursor.xPos, gameCursor.yPos, RED);
+			renderCursor(&gameCursor, it > 1);
 			
 			
+			it++;
 		}
 		wait_for_vsync();
          // swap front and back buffers on VGA vertical sync
@@ -345,5 +350,23 @@ void HEX_PS2(char b1,char b2,char b3) {
 	*(HEX3_HEX0_ptr) =*(int*)(hex_segs);
 	*(HEX5_HEX4_ptr) =*(int*)(hex_segs + 4);
 }
+
+/* This program demonstrates memory-mapped I/O using C code * * It performs the following:  * 1. displays SW on LEDR * 2. displays hex digits corresponding to SW on HEX3-0 */
+char seg7[] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x67, 0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71};
+void HEX(int val) {/* Declare volatile pointers to I/O registers (volatile means that IO load * and store instructions will be used to access these pointer locations,  * instead of regular memory loads and stores)*/
+	volatile int * LEDR_ptr = (int *)0xFF200000;// red LED address
+	volatile int * SW_ptr= (int *)0xFF200040;// SW slide switch address
+	volatile int * HEX3_0_ptr= (int *)0xFF200020;// HEX3_HEX0 address
+	int value;
+	while(1) {
+		val++;
+		
+		value = *(SW_ptr);// read the SW slider switch values
+						*(LEDR_ptr) = val; // light up the red LEDs
+		int hun = val/100;
+		int tens = (val - hun*100)/10;
+		int ones = (val - tens*10);
+						*(HEX3_0_ptr) = seg7[ones] | seg7[tens] << 8 | seg7[hun] << 16;}}
 	
 	
+
