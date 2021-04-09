@@ -349,28 +349,28 @@ int main(void) {
 				*(PS2_ptr) = 0xF4;
 			//If A is pressed
 				if (byte3 == 28) {
-				gameCursor.xPos--;
+				gameCursor.xPos-=5;
 				if (gameCursor.xPos < 0) {
 					gameCursor.xPos = 0;
 				}
 			}
 			//If D is pressed
 			if (byte3 == 35) {
-				gameCursor.xPos++;
+				gameCursor.xPos+=5;
 				if (gameCursor.xPos > RESOLUTION_X-1) {
 					gameCursor.xPos = RESOLUTION_X-1;
 				}
 			}
 			//If W is pressed
 			if (byte3 == 27) {
-				gameCursor.yPos++;
+				gameCursor.yPos+=5;
 				if (gameCursor.yPos > RESOLUTION_Y-1) {
 					gameCursor.yPos = RESOLUTION_Y-1;
 				}
 			}
 			//If S is pressed
 			if (byte3 == 29) {
-				gameCursor.yPos--;
+				gameCursor.yPos-=5;
 				if (gameCursor.yPos < 0) {
 					gameCursor.yPos = 0;
 				}
