@@ -38,6 +38,7 @@
 
 #define FALSE 0
 #define TRUE 1
+#define pixelTarget 49 //number of pixels that make up a target/**NEW**/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -358,79 +359,50 @@ void draw_triangle(int x, int y){
 			if(i==4 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7 && j!=3 && j!=6) ){draw_pixel(x+j,y+i,0xffff);}
 	}
 }
-/**CODE IS REPEATED IN OTHER FILE, AFTER THIS POINT**/
 
-// code not shown for clear_screen() and draw_line() subroutines
-/*Clears the screen*/
-void clear_screen(){
-	short int line_color = 0x0000;
-	for(int i=0;i<320;i++){
-		for(int j=0;j<240;j++){
-		*(short int*)(pixel_buffer_start+(j<<10)+(i<<1)) = line_color;
-		}
+/***NEW***/
+//7x7 pixel block for target, note the target pixels are organized with elements in the same column 
+//togehter one after the other.
+point target[pixelTarget];
+void print(){
+	for(int i=0;i<pixelTarget;i++){
+		draw_pixel(target[i].xPos,target[i].yPos,target[i].color);
 	}
 }
-/*****/
-void clear_text(){
-	int offset;
-	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
-	//offset = (y << 7) + x;
-	for(int i=0;i<80;i++){
-		for(int j=0;j<60;j++){
-			*(character_buffer + (j<<7)+i) =' ';
-		}
+void initialize_target(int x,int y){
+	bool flip = false;
+	for(int j=0;j<7;j++){
+		target[j+21].xPos = x;
+		target[j+21].yPos = y-3+j;
+		if(!flip){target[j+21].color = 0xf800; flip=true;}
+		else{target[j+21].color = 0xffff; flip=false;}
 	}
-}
-
-void draw_text(int x,int y,char* text_ptr){
-	int offset;
-	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
-	offset = (y << 7) + x;
-	while(*(text_ptr)) {
-		*(character_buffer + offset) =*(text_ptr);
-		++text_ptr;
-		++offset;
-	}
-}
-/*****/
-void draw_pixel(int x,int y,short int line_color){
-	*(short int*)(pixel_buffer_start+(y<<10)+(x<<1)) = line_color;
-}
-void swap(int *x,int *y){
-	int temp = *x;
-	*x = *y;
-	*y = temp;
-}
-
-void draw_line(int x0,int y0,int x1,int y1,short int line_color){
-	bool is_steep = ABS(y1-y0)>ABS(x1-x0);
-	if(is_steep){
-		swap(&x0,&y0);
-		swap(&x1,&y1);
-	}
-	if(x0>x1){
-		swap(&x0,&x1);
-		swap(&y0,&y1);
-	}
-	int delta_x = x1-x0;
-	int delta_y = ABS(y1-y0);
-	int error = - (delta_x/2);
-	int y = y0;
-	int y_step;
-	if(y0<y1){ y_step = 1;}
-	else { y_step = -1;}
 	
-	for(int x = x0; x<=x1;x++){
-		if(is_steep){ draw_pixel(y,x,line_color);}
-		else{
-			draw_pixel(x,y,line_color);
-			error = error + delta_y;
-		}
-		if(error>=0){
-			y += y_step;
-			error -= delta_x;
-		}
+	for(int j=0;j<7;j++){
+		if(j==0 ||j==3|| j==6){target[j+14].color = 0xf800;target[j+28].color = 0xf800;}//set color to red
+		else{target[j+14].color = 0xffff;target[j+28].color = 0xffff;}//set color to be background color 
+		target[j+14].xPos = x-1; 
+		target[j+14].yPos = y-3+j;
+		target[j+28].xPos = x+1; 
+		target[j+28].yPos = y-3+j;
+	}
 	
+	for(int j=0;j<7;j++){
+		if(j==1 || j==5){target[j+7].color = 0xf800;target[j+35].color = 0xf800;}//set color to red
+		else if(j==0||j==6){target[j+7].color = 0x0000;target[j+35].color = 0x0000;}//set color to be background color
+		else{target[j+7].color = 0xffff;target[j+35].color = 0xffff;}//set color to be white
+		target[j+7].xPos = x-2; 
+		target[j+7].yPos = y-3+j;
+		target[j+35].xPos = x+2; 
+		target[j+35].yPos = y-3+j;
+	}
+
+	for(int j=0;j<7;j++){
+		//code for column x-3
+		if(j == 2 || j == 3 || j==4){target[j].xPos = x-3; target[j].yPos = y-3+j; target[j].color = 0xf800;}
+		else{target[j].xPos = x-3; target[j].yPos = y-3+j; target[j].color = 0x0000 ;}
+		//code for column x+3
+		if(j == 2 || j == 3 || j==4){target[j+42].xPos = x+3; target[j+42].yPos = y-3+j; target[j+42].color = 0xf800;}
+		else{target[j+42].xPos = x+3; target[j+42].yPos = y-3+j; target[j+42].color = 0x0000;}
 	}
 }
-
