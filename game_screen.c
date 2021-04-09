@@ -91,12 +91,15 @@ void render_title(bool front){
 	}
 }
 //prints game information and instructions onto the screen at predefined positions
+/*******************************************************************/
+/*Unclear on how to concactinate numbers and and strings. INVESTIGATE*/
+/*******************************************************************/
 void info_MainPage(){
 	char *ptr_ = "INSTRUCTIONS:";
 	draw_text(5,30,ptr_);
 	ptr_ = "1) CONTROL THE CURSOR USING 'W' 'A' 'S' 'D' ";
 	draw_text(5,35,ptr_);
-    ptr_ = "2) START/CONTINUE USING ENTER KEY";
+        ptr_ = "2) START/CONTINUE USING ENTER KEY";
 	draw_text(5,38,ptr_);
 	ptr_ = "3) PRESS SPACE TO SHOT";
 	draw_text(5,41,ptr_);
@@ -110,6 +113,7 @@ void info_MainPage(){
 
 
 /*Draw Arrow for direction*/
+/*Incomplete*/
 //(x,y) are the tip of the arrow, pixel block will be 7x10
 void draw_arrow(int x,int y,char* direction){
 	if(strcmp(direction,"up")){}
@@ -120,12 +124,15 @@ void draw_arrow(int x,int y,char* direction){
 
 //renders status bar in the top right corner of the game page
 //update highest score global variable
+/*******************************************************************/
+/*Unclear on how to concactinate numbers and and strings. INVESTIGATE*/
+/*******************************************************************/
 void status_bar(int score,int highScore,int strike){
 	char *ptr_ = "STATUS BAR:";
 	draw_text(65,3,ptr_);
 	ptr_ = "SCORE: ";
 	draw_text(65,6,ptr_);
-    ptr_ = "HIGHSCORE: ";
+        ptr_ = "HIGHSCORE: ";
 	draw_text(65,8,ptr_);
 	ptr_ = "STRIKE: ";
 	draw_text(65,10,ptr_);
@@ -340,7 +347,7 @@ void letter_D(int x, int y){
 	draw_pixel(x+3,y+29,0xffff);
 }
 
-//draw tiangles
+//draw tiangles, pointing down. Thinking of using it as divided between title and instruction section of main page
 void draw_triangle(int x, int y){
 	for(int i=0;i<5;i++)
 	for(int j=0;j<10;j++){//columns 
@@ -351,6 +358,7 @@ void draw_triangle(int x, int y){
 			if(i==4 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7 && j!=3 && j!=6) ){draw_pixel(x+j,y+i,0xffff);}
 	}
 }
+/**CODE IS REPEATED IN OTHER FILE, AFTER THIS POINT**/
 
 // code not shown for clear_screen() and draw_line() subroutines
 /*Clears the screen*/
