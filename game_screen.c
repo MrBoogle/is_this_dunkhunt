@@ -97,16 +97,16 @@ int main(void)
 //if front is true, displays "Terminator", if !front displays "Game Over"
 void render_title(bool front){
 	if(front){
-	letter_T(100-40,20);
-	letter_E(114-40,20);
-	letter_R(128-40,20);
-	letter_M(142-40,20);
-	letter_I(154-40,20);
-	letter_N(168-40,20);
-	letter_A(182-40,20);
-	letter_T(196-40,20);
-	letter_O(210-40,20);
-	letter_R(224-40,20);
+	letter_T(60,20);
+	letter_E(74,20);
+	letter_R(88,20);
+	letter_M(102,20);
+	letter_I(116,20);
+	letter_N(130,20);
+	letter_A(144,20);
+	letter_T(158,20);
+	letter_O(172,20);
+	letter_R(186,20);
 	}
 	else{
 	letter_G(99,105);
@@ -121,7 +121,7 @@ void render_title(bool front){
 }
 //prints game information and instructions onto the screen at predefined positions
 /*******************************************************************/
-/*Unclear on how to concactinate numbers and and strings. INVESTIGATE*/
+/*Complete highScore is used to show present highest score*/
 /*******************************************************************/
 void info_MainPage(){
 	char *ptr_ = "INSTRUCTIONS:";
@@ -136,8 +136,9 @@ void info_MainPage(){
 	draw_text(5,44,ptr_);
 	
 	//Highest Saved score
-	ptr_ = "HIGHEST SCORE: "; // include some number
-	draw_text(40,20,ptr_);
+	char buf[100];
+	snprintf(buf, 100, "HIGHEST SCORE: %d", highScore); // puts string into buffer
+	draw_text(40,20,buf);
 }
 
 
@@ -154,17 +155,21 @@ void draw_arrow(int x,int y,char* direction){
 //renders status bar in the top right corner of the game page
 //update highest score global variable
 /*******************************************************************/
-/*Unclear on how to concactinate numbers and and strings. INVESTIGATE*/
+/*Complete, uses gloabl variable to present values*/
 /*******************************************************************/
-void status_bar(int score,int highScore,int strike){
+void status_bar(){
+	char buf[100];
 	char *ptr_ = "STATUS BAR:";
-	draw_text(65,3,ptr_);
-	ptr_ = "SCORE: ";
-	draw_text(65,6,ptr_);
-        ptr_ = "HIGHSCORE: ";
-	draw_text(65,8,ptr_);
-	ptr_ = "STRIKE: ";
-	draw_text(65,10,ptr_);
+	draw_text(60,3,ptr_);
+	
+	snprintf(buf, 100, "SCORE: %d", score);
+	draw_text(60,6,buf);
+	
+	snprintf(buf, 100, "HIGHSCORE: %d", highScore);
+	draw_text(60,8,buf);
+	
+        snprintf(buf, 100, "STRIKE: %d", strike);
+	draw_text(60,10,buf);
 }
 
 void letter_E(int x,int y){
