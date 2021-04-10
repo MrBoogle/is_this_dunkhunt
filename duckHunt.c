@@ -46,12 +46,15 @@ void HEX_PS2(char,char,char);/**************************************************
 
 #define FALSE 0
 #define TRUE 1
+#define SHOT_RANGE 10
+#define BULLET_CLR YELLOW
 
 #include <stdlib.h>
 #include <stdio.h>
 
 // Begin part1.s for Lab 7
 void plot_pixel(int x, int y, short int line_color);
+
 volatile int pixel_buffer_start; // global variable
 
 int score = 0;
@@ -94,6 +97,8 @@ typedef struct point point;
 struct target {
 	int xPos;
 	int yPos;
+	int xVel;
+	int yVel;
 	int shot; //1 if shot, 0 if not shot
 	int spawned; //Only draw and register shots when set to 1
 	point image[25];
@@ -103,8 +108,9 @@ struct target {
 };
 
 typedef struct target target;
-
+void initTarget(target* gameT, int t);
 target TARGETS[NUM_BOXES];
+
 
 struct cursor {
 	int xPos;
@@ -115,10 +121,53 @@ struct cursor {
 	point toDelete[8];
 };
 
+
+
+struct gun {
+	int xPos;
+	int yPos;
+	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
+	point image[8];
+	point previous[8];
+	point toDelete[8];
+};
+
+
+
+struct bullet {
+	int xPos;
+	int yPos;
+	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
+	point image[25];
+	point previous[25];
+	point toDelete[25];
+};
+
+point bulletImage[25] = {
+	{-2, 2, BULLET_CLR}, {-1, 2, BULLET_CLR}, {0, 2, BULLET_CLR}, {1, 2, BULLET_CLR}, {2, 2, BULLET_CLR},	
+	{-2, 1, BULLET_CLR}, {-1, 1, BULLET_CLR}, {0, 1, BULLET_CLR}, {1, 1, BULLET_CLR}, {2, 1, BULLET_CLR},
+	{-2, 0, BULLET_CLR}, {-1, 0, BULLET_CLR}, {0, 0, BULLET_CLR}, {1, 0, BULLET_CLR}, {2, 0, BULLET_CLR},
+	{-2, -1, BULLET_CLR}, {-1, -1, BULLET_CLR}, {0, -1, BULLET_CLR}, {1, -1, BULLET_CLR}, {2, -1, BULLET_CLR},
+	{-2, -2, BULLET_CLR}, {-1, -2, BULLET_CLR}, {0, -2, BULLET_CLR}, {1, -2, BULLET_CLR}, {2, -2, BULLET_CLR}
+	
+};
+
+
+typedef struct bullet bullet;
+
+target BULLETS[NUM_BOXES];
+
+typedef struct gun gun;
+
+point gunImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
+
 typedef struct cursor cursor;
 void initTargets() {
+	srand(time(0));
 	for (int i = 0; i < NUM_BOXES; i++) {
-		//Initialize target  
+		
+		
+		initTarget(&TARGETS[i], rand());  
 	}
 	
 }
@@ -147,14 +196,49 @@ void initCursor(cursor* gameC) {
 	
 }
 
-void initTarget(target* gameT) {
+
+void initBullet(bullet* gameB) {
 	//Initialize cursor
-	gameT->xPos = RESOLUTION_X/2+40;
-	gameT->yPos = RESOLUTION_Y/2+40;
+	gameB->xPos = -5;
+	gameB->yPos = -5;
+	for (int i = 0; i < 8; i++) {
+		gameB->image[i] = bulletImage[i];
+		gameB->previous[i] = bulletImage[i];
+		gameB->toDelete[i] = bulletImage[i];
+	}
+	
+}
+
+void initBullets() {
+	for (int b = 0; b < NUM_BOXES; b++) {
+		initBullet(&BULLETS[b]);
+	}
+}
+
+void initTarget(target* gameT, int t) {
+	//Initialize cursor
+	
+	gameT->xPos = t%RESOLUTION_X;
+	gameT->yPos = t%RESOLUTION_Y;
+	gameT->xVel = (t%2)*2 - 1;
+	gameT->yVel = (t%2)*2 - 1;
+	gameT->shot = 0;
 	for (int i = 0; i < 25; i++) {
 		gameT->image[i] = targetImage[i];
 		gameT->previous[i] = targetImage[i];
 		gameT->toDelete[i] = targetImage[i];
+	}
+	
+}
+
+void initGun(gun* gameG) {
+	//Initialize cursor
+	gameG->xPos = RESOLUTION_X/2;
+	gameG->yPos = RESOLUTION_Y/2+60;
+	for (int i = 0; i < 8; i++) {
+		gameG->image[i] = gunImage[i];
+		gameG->previous[i] = gunImage[i];
+		gameG->toDelete[i] = gunImage[i];
 	}
 	
 }
@@ -173,8 +257,9 @@ int checkShot(cursor *check) {
 	for (int i = 0; i < NUM_BOXES; i++) {
 		int deltaX = abs((*check).xPos - TARGETS[i].xPos);
 		int deltaY = abs(check->yPos - TARGETS[i].yPos);
-		if (deltaY < 3 && deltaX < 3) {
+		if (deltaY < SHOT_RANGE && deltaX < SHOT_RANGE) {
 			score++;
+			check->shot = 1;
 			return 1;
 		} 
 	}
@@ -203,6 +288,36 @@ void renderCursor(cursor* gameC, int valid) { /**Rendering is for graphics, this
 	}
 }
 
+void renderGun(gun* gameG, int valid, int flash) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
+	int n = sizeof(gameG->toDelete)/sizeof(gameG->toDelete[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
+		if (valid) plot_pixel(gameG->toDelete[i].xPos, gameG->toDelete[i].yPos, gameG->toDelete[i].color);
+		//plot_pixel(0, 0, RED);
+		gameG->toDelete[i] = gameG->previous[i];
+		gameG->previous[i].xPos = gameG->xPos + gameG->image[i].xPos;
+		gameG->previous[i].yPos = gameG->yPos + gameG->image[i].yPos;
+		gameG->previous[i].color = *(short int *)(pixel_buffer_start + (gameG->yPos + gameG->image[i].yPos << 10) + (gameG->xPos + gameG->image[i].xPos << 1));
+		flushPS2();
+	}
+
+	//Draw current
+	for (int i = 0; i < n; i++) {
+		
+		if (flash && valid) {
+			plot_pixel(gameG->xPos + gameG->image[i].xPos, gameG->yPos + gameG->image[i].yPos, gameG->image[i].color);
+			
+		}
+			else if (valid){
+				plot_pixel(gameG->xPos + gameG->previous[i].xPos, gameG->yPos + gameG->previous[i].yPos, gameG->previous[i].color);
+			}
+		
+		flushPS2();
+	}
+	
+}
+
 
 
 void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
@@ -210,18 +325,22 @@ void renderTarget(target* gameT, int valid) {/**Similar comment as above, just c
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
 	for (int i = 0; i < n; i++){
-		if (valid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
+		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
+		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
 		//plot_pixel(0, 0, RED);
 		gameT->toDelete[i] = gameT->previous[i];
 		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
 		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
-		gameT->previous[i].color = *(short int *)(pixel_buffer_start + (gameT->yPos + gameT->image[i].yPos << 10) + (gameT->xPos + gameT->image[i].xPos << 1));
+		gameT->previous[i].color = CYAN;// *(short int *)(pixel_buffer_start + (gameT->yPos + gameT->image[i].yPos << 10) + (gameT->xPos + gameT->image[i].xPos << 1));
 		flushPS2();
 	}
 
 	//Draw current
 	for (int i = 0; i < n; i++) {
-		plot_pixel(gameT->xPos + gameT->image[i].xPos, gameT->yPos + gameT->image[i].yPos, gameT->image[i].color);
+		int x = gameT->xPos + gameT->image[i].xPos;
+		int y = gameT->yPos + gameT->image[i].yPos;
+		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
+		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
 		flushPS2();
 	}
 }
@@ -291,24 +410,88 @@ void drawBox (int x, int y, int color) {
 	}
 }
 
+void draw_text(int x,int y,char* text_ptr){
+	int offset;
+	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
+	offset = (y << 7) + x;
+	while(*(text_ptr)) {
+		*(character_buffer + offset) =*(text_ptr);
+		++text_ptr;
+		++offset;
+	}
+}
 
+/*void render_title(bool front){
+	if(front){
+	letter_T(60,20);
+	letter_E(74,20);
+	letter_R(88,20);
+	letter_M(102,20);
+	letter_I(116,20);
+	letter_N(130,20);
+	letter_A(144,20);
+	letter_T(158,20);
+	letter_O(172,20);
+	letter_R(186,20);
+	}
+	else{
+	letter_G(99,105);
+	letter_A(113,105);
+	letter_M(127,105);
+	letter_E(141,105);
+	letter_O(159,105);
+	letter_V(173,105);
+	letter_E(187,105);
+	letter_R(201,105);
+	}
+}*/
 
+void info_MainPage(){
+	char *ptr_ = "INSTRUCTIONS:";
+	draw_text(5,30,ptr_);
+	ptr_ = "1) CONTROL THE CURSOR USING 'W' 'A' 'S' 'D' ";
+	draw_text(5,35,ptr_);
+        ptr_ = "2) START/CONTINUE USING ENTER KEY";
+	draw_text(5,38,ptr_);
+	ptr_ = "3) PRESS SPACE TO SHOT";
+	draw_text(5,41,ptr_);
+	ptr_ = "4) PRESS ESC TO RETURN TO THE START PAGE";
+	draw_text(5,44,ptr_);
+	
+	//Highest Saved score
+	char buf[100];
+	snprintf(buf, 100, "HIGHEST SCORE: %d", highScore); // puts string into buffer
+	draw_text(40,20,buf);
+}
 
-
+void clear_text(){
+	int offset;
+	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
+	//offset = (y << 7) + x;
+	for(int i=0;i<80;i++){
+		for(int j=0;j<60;j++){
+			*(character_buffer + (j<<7)+i) =' ';
+		}
+	}
+}
 
 
 
 
 
 int main(void) {
+	int gameMode = 0;// 0 = start, 1 is game, 2 is game over
 	int it = 0;
+	int flash = 0;
 	cursor gameCursor;
+	gun gameGun;
 	gameCursor.xPos = RESOLUTION_X/2;
 	gameCursor.yPos = RESOLUTION_Y/2;
 	gameCursor.shot = 0;
 	initCursor(&gameCursor);
-	
-	initTarget(&TARGETS[0]);
+	initGun(&gameGun);
+	initTargets();
+	initBullets();
 	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -320,10 +503,12 @@ int main(void) {
     pixel_buffer_start = *pixel_ctrl_ptr;
     clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
     /* set back pixel buffer to start of SDRAM memory */
+	clear_text();
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 	
 	clear_screen(CYAN);
+	clear_text();
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
 	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
@@ -334,6 +519,13 @@ int main(void) {
 	
 	int count = 0;
 	while(1) {
+		for (int tg = 0; tg < NUM_BOXES; tg++) {
+			TARGETS[tg].xPos += TARGETS[tg].xVel;
+			TARGETS[tg].yPos += TARGETS[tg].yVel;
+			if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
+			if (TARGETS[tg].yPos == 0 || TARGETS[tg].yPos == 240-5) TARGETS[tg].yVel *= -1; 
+		}
+	
 		
 		//HEX_PS2(byte1, 0, 0);
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
@@ -379,17 +571,28 @@ int main(void) {
 			if (byte3 == 41) {	
 				if (!gameCursor.shot) gameCursor.shot = 1;
 				checkShot(&gameCursor);
+				flash = 1;
+				
 			}
-			renderTarget(&TARGETS[0], it > 1);
-			renderCursor(&gameCursor, it > 1);
+			
+			
+			//renderGun(&gameGun, it > 1, flash);
+			//draw_line(gameCursor.xPos, gameCursor.yPos, gameGun.xPos, gameGun.yPos, RED);
+			flash = 0;
 			
 			
 			
-			it++;
+			
+			
+		}
+		for (int t = 0; t < 8 && !TARGETS[t].shot; t++) {
+			renderTarget(&TARGETS[t], it > 1);
+			}
+		renderCursor(&gameCursor, it > 1);
+		it++;
 			wait_for_vsync();
          // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-		}
 		
 
 		
@@ -414,6 +617,15 @@ void HEX_PS2(char b1,char b2,char b3) {
 	*(HEX3_HEX0_ptr) =*(int*)(hex_segs);
 	*(HEX5_HEX4_ptr) =*(int*)(hex_segs + 4);
 }
+
+
+
+
+
+
+
+
+
 
 /* This program demonstrates memory-mapped I/O using C code * * It performs the following:  * 1. displays SW on LEDR * 2. displays hex digits corresponding to SW on HEX3-0 */
 char seg7[] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x67, 0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71};
