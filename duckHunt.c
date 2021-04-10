@@ -60,6 +60,7 @@ volatile int pixel_buffer_start; // global variable
 int score = 0;
 int highScore = 0;
 int strike = 0;
+int level = 1;
 
 
 void wait_for_vsync() {
@@ -438,9 +439,9 @@ void plot_pixel(int x, int y, short int line_color)
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
 
-void drawBox (int x, int y, int color) {
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; i++) {
+void drawBox (int x, int y, int w, int h, int color) {
+	for (int i = 0; i < w; i++) {
+		for (int j = 0; j < h; j++) {
 			if (x+i < RESOLUTION_X && y+j < RESOLUTION_Y)plot_pixel(x+i, y+j, color);
 		}
 	}
@@ -695,18 +696,22 @@ void render_title(int front){
 }
 
 void status_bar(){
+	drawBox(235, 5, 65, 55, GREY);
 	char buf[100];
-	char *ptr_ = "STATUS BAR:";
+	char *ptr_ = "  STATUS BAR";
 	draw_text(60,3,ptr_);
 	
-	snprintf(buf, 100, "SCORE: %d", score);
+	snprintf(buf, 100, "   LEVEL %d", level);
 	draw_text(60,6,buf);
 	
-	snprintf(buf, 100, "HIGHSCORE: %d", highScore);
-	draw_text(60,8,buf);
+	snprintf(buf, 100, "SCORE: %d", score);
+	draw_text(60,9,buf);
 	
-        snprintf(buf, 100, "STRIKE: %d", strike);
-	draw_text(60,10,buf);
+	snprintf(buf, 100, "HIGHSCORE: %d", highScore);
+	draw_text(60,11,buf);
+	
+        snprintf(buf, 100, "STRIKES: %d", strike);
+	draw_text(60,13,buf);
 }
 
 void info_MainPage(){
@@ -723,9 +728,16 @@ void info_MainPage(){
 	
 	//Highest Saved score
 	char buf[100];
-	snprintf(buf, 100, "HIGHEST SCORE: %d", highScore); // puts string into buffer
-	draw_text(40,20,buf);
+	snprintf(buf, 100, "HIGH SCORE: %d", highScore); // puts string into buffer
+	draw_text(5,10,buf);
 }
+
+void draw_level(int level) {
+	char buf[100];
+	//char *ptr_ = "LEVEL";
+	snprintf(buf, 100, "LEVEL %d", level);
+	draw_text(50,50,buf);
+	}
 
 void clear_text(){
 	int offset;
@@ -767,6 +779,7 @@ void erase_screen(int color) {
 
 
 int main(void) {
+	level = 1;
 	int gameMode = 0;// 0 = start, 1 is game, 2 is game over
 	int it = 0;
 	int flash = 0;
@@ -837,6 +850,7 @@ int main(void) {
 			strike = 0;
 		}
 		while (gameMode == 1) {
+			
 		status_bar();
 		HEX_PS2(highScore, score, strike);
 		for (int tg = 0; tg < NUM_BOXES; tg++) {
