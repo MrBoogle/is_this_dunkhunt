@@ -669,7 +669,7 @@ void letter_D(int x, int y){
 //---------
 
 
-void render_title(int front){
+void render_title(bool /*int*/ front){ /**Not sure if you changes this by accidient, but render_title takes and bool the way i coded it.**/
 	if(front){
 	letter_T(60,20);
 	letter_E(74,20);
@@ -805,7 +805,7 @@ int main(void) {
 		while (!gameMode) {
 			
 			info_MainPage();
-			render_title(1);
+			render_title(1); 
 			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 			RVALID   = PS2_data & 0x8000;// extract the RVALID field
 			if(RVALID) {
