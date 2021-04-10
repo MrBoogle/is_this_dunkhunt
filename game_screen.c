@@ -55,6 +55,30 @@ volatile int pixel_buffer_start; // global variable
 /*Used inside initilizetarget functions*/
 point target[pixelTarget];
 point biggerTarget[higher];
+
+/*****/
+void clear_text(){
+	int offset;
+	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
+	//offset = (y << 7) + x;
+	for(int i=0;i<80;i++){
+		for(int j=0;j<60;j++){
+			*(character_buffer + (j<<7)+i) =' ';
+		}
+	}
+}
+
+void draw_text(int x,int y,char* text_ptr){
+	int offset;
+	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
+	offset = (y << 7) + x;
+	while(*(text_ptr)) {
+		*(character_buffer + offset) =*(text_ptr);
+		++text_ptr;
+		++offset;
+	}
+}
+
 /**/
 int main(void)
 {
