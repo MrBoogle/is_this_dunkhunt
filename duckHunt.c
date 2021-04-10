@@ -520,9 +520,9 @@ point findShot(target* gameT) {
 
 volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 
-void erase_screen() {
+void erase_screen(int color) {
 	pixel_buffer_start = *pixel_ctrl_ptr;
-	clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
+	clear_screen(color); // pixel_buffer_start points to the pixel buffer
 
 
 	/* set back pixel buffer to start of SDRAM memory */
@@ -531,7 +531,7 @@ void erase_screen() {
 	*(pixel_ctrl_ptr + 1) = 0xC0000000;
 	pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 
-	clear_screen(CYAN);
+	clear_screen(color);
 
 	clear_text();
 
@@ -560,7 +560,7 @@ int main(void) {
     /* now, swap the front/back buffers, to set the front buffer location */
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
-    erase_screen();
+    erase_screen(0);
 	//draw_text(gameGun.xPos,gameGun.yPos,ptr_);
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
@@ -576,6 +576,7 @@ int main(void) {
 	while(1) {
 		
 		if (!gameMode) {
+			//erase_screen(0);
 			info_MainPage();
 			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 			RVALID   = PS2_data & 0x8000;// extract the RVALID field
@@ -589,14 +590,14 @@ int main(void) {
 				if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 					*(PS2_ptr) = 0xF4;
 				if (byte3 == 90) {
-				  	erase_screen();
+				  	erase_screen(CYAN);
 					gameMode = 1;
 				
 				}
 		}
 		
 		} else if (gameMode == 2) {
-			erase_screen();
+			erase_screen(0);
 			
 			score = 0;
 		}
@@ -683,6 +684,7 @@ int main(void) {
 			}
 			if (byte3 == 118) {	
 				gameMode = 0;
+				erase_screen(0);
 				
 			}
 			
@@ -707,6 +709,7 @@ int main(void) {
 			gameMode = 2;
 			strike = 0;
 			if (highScore < score) highScore = score;
+			erase_screen(0);
 			
 		}
 		
