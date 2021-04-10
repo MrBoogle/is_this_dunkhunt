@@ -374,7 +374,7 @@ void print_7x7(){
 }
 void print_9x9(){
 	for(int i=0;i<higher;i++){
-		draw_pixel(target_[i].xPos,target_[i].yPos,target_[i].color);
+		draw_pixel(biggerTarget[i].xPos,biggerTarget[i].yPos,biggerTarget[i].color);
 	}
 }
 void initialize_target_7x7(int x,int y){
