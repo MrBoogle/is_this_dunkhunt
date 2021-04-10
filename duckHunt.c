@@ -51,7 +51,7 @@ void HEX_PS2(char,char,char);/**************************************************
 
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <math.h>
 // Begin part1.s for Lab 7
 void plot_pixel(int x, int y, short int line_color);
 
@@ -94,11 +94,15 @@ struct point {
 
 typedef struct point point;
 
+point playerLoc = {RESOLUTION_X/2, RESOLUTION_Y/2 + 80, 0};
+
+
 struct target {
 	int xPos;
 	int yPos;
 	int xVel;
 	int yVel;
+	int timer;
 	int shot; //1 if shot, 0 if not shot
 	int spawned; //Only draw and register shots when set to 1
 	point image[25];
@@ -137,6 +141,8 @@ struct gun {
 struct bullet {
 	int xPos;
 	int yPos;
+	int xVel;
+	int yVel;
 	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
 	point image[25];
 	point previous[25];
@@ -155,7 +161,7 @@ point bulletImage[25] = {
 
 typedef struct bullet bullet;
 
-target BULLETS[NUM_BOXES];
+bullet BULLETS[NUM_BOXES];
 
 typedef struct gun gun;
 
@@ -201,6 +207,9 @@ void initBullet(bullet* gameB) {
 	//Initialize cursor
 	gameB->xPos = -5;
 	gameB->yPos = -5;
+	gameB->yPos = 0;
+	gameB->xVel = 1;
+	gameB->yVel = 1;
 	for (int i = 0; i < 8; i++) {
 		gameB->image[i] = bulletImage[i];
 		gameB->previous[i] = bulletImage[i];
@@ -223,6 +232,7 @@ void initTarget(target* gameT, int t) {
 	gameT->xVel = (t%2)*2 - 1;
 	gameT->yVel = (t%2)*2 - 1;
 	gameT->shot = 0;
+	gameT->timer = t%81 + 80;
 	for (int i = 0; i < 25; i++) {
 		gameT->image[i] = targetImage[i];
 		gameT->previous[i] = targetImage[i];
@@ -321,6 +331,32 @@ void renderGun(gun* gameG, int valid, int flash) { /**Rendering is for graphics,
 
 
 void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
+	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
+		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
+		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
+		//plot_pixel(0, 0, RED);
+		gameT->toDelete[i] = gameT->previous[i];
+		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
+		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
+		gameT->previous[i].color = CYAN;// *(short int *)(pixel_buffer_start + (gameT->yPos + gameT->image[i].yPos << 10) + (gameT->xPos + gameT->image[i].xPos << 1));
+		flushPS2();
+	}
+
+	//Draw current
+	for (int i = 0; i < n; i++) {
+		int x = gameT->xPos + gameT->image[i].xPos;
+		int y = gameT->yPos + gameT->image[i].yPos;
+		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
+		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
+		flushPS2();
+	}
+}
+
+
+void renderBullet(bullet* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
 	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
@@ -475,7 +511,12 @@ void clear_text(){
 	}
 }
 
-
+point findShot(target* gameT) {
+	point result;
+	result.xPos = (gameT->xPos - playerLoc.xPos)/5;
+	result.yPos = (gameT->yPos - playerLoc.yPos)/5;
+	return result;
+}
 
 
 
@@ -502,13 +543,18 @@ int main(void) {
     /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
     clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
+	
+	
     /* set back pixel buffer to start of SDRAM memory */
 	clear_text();
+
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
 	
 	clear_screen(CYAN);
+	
 	clear_text();
+	//draw_text(gameGun.xPos,gameGun.yPos,ptr_);
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
 	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
@@ -516,12 +562,36 @@ int main(void) {
 	
 	
 	
-	
+	int lineRedrawX[8];
+	int lineRedrawY[8];
 	int count = 0;
 	while(1) {
+		int drawRay;
 		for (int tg = 0; tg < NUM_BOXES; tg++) {
 			TARGETS[tg].xPos += TARGETS[tg].xVel;
 			TARGETS[tg].yPos += TARGETS[tg].yVel;
+			TARGETS[tg].timer--;
+			printf("Timer: %d\n", TARGETS[tg].timer); 
+			if (TARGETS[tg].timer <= 0) {
+				
+			if (!TARGETS[tg].timer) {
+			BULLETS[tg].xPos = TARGETS[tg].xPos;
+			BULLETS[tg].yPos = TARGETS[tg].yPos;
+				lineRedrawX[tg] = TARGETS[tg].xPos;
+				lineRedrawY[tg] = TARGETS[tg].xPos;
+			drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
+			if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED);
+			} 
+			if (TARGETS[tg].timer == -6 || TARGETS[tg].timer == -7) {
+				drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
+				if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN);
+			}
+			//findShot(&TARGETS[tg]);
+			BULLETS[tg].xPos += BULLETS[tg].xVel;
+			BULLETS[tg].yPos += BULLETS[tg].yVel;
+			
+			}
+			if (TARGETS[tg].timer == 0) BULLETS[tg].shot = 1;
 			if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
 			if (TARGETS[tg].yPos == 0 || TARGETS[tg].yPos == 240-5) TARGETS[tg].yVel *= -1; 
 		}
@@ -585,12 +655,16 @@ int main(void) {
 			
 			
 		}
-		for (int t = 0; t < 8 && !TARGETS[t].shot; t++) {
+		for (int t = 0; t < 8; t++) {
 			renderTarget(&TARGETS[t], it > 1);
-			}
+			//renderBullet(&BULLETS[t], it > 1);
+			
+		}
 		renderCursor(&gameCursor, it > 1);
+		
+		
 		it++;
-			wait_for_vsync();
+		wait_for_vsync();
          // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1);
 		
