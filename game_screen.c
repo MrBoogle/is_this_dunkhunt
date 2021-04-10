@@ -39,6 +39,7 @@
 #define FALSE 0
 #define TRUE 1
 #define pixelTarget 49 //number of pixels that make up a target/**NEW**/
+#define higher 81
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,7 +52,10 @@
 //void clear_screen();
 	
 volatile int pixel_buffer_start; // global variable
-
+/*Used inside initilizetarget functions*/
+point target[pixelTarget];
+point biggerTarget[higher];
+/**/
 int main(void)
 {
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
@@ -363,13 +367,17 @@ void draw_triangle(int x, int y){
 /***NEW***/
 //7x7 pixel block for target, note the target pixels are organized with elements in the same column 
 //togehter one after the other.
-point target[pixelTarget];
-void print(){
+void print_7x7(){
 	for(int i=0;i<pixelTarget;i++){
 		draw_pixel(target[i].xPos,target[i].yPos,target[i].color);
 	}
 }
-void initialize_target(int x,int y){
+void print_9x9(){
+	for(int i=0;i<higher;i++){
+		draw_pixel(target_[i].xPos,target_[i].yPos,target_[i].color);
+	}
+}
+void initialize_target_7x7(int x,int y){
 	bool flip = false;
 	for(int j=0;j<7;j++){
 		target[j+21].xPos = x;
@@ -406,3 +414,52 @@ void initialize_target(int x,int y){
 		else{target[j+42].xPos = x+3; target[j+42].yPos = y-3+j; target[j+42].color = 0x0000;}
 	}
 }
+
+void initilize_target_9x9(int x,int y){
+	//column x-4 and x+4
+	for(int j=0;j<9;j++){
+		biggerTarget[j].xPos = x-4;
+		biggerTarget[j].yPos = y-4+j;
+		biggerTarget[j+72].xPos = x+4;
+		biggerTarget[j+72].yPos = y-4+j;
+		if(j==0||j==1||j==7||j==8){biggerTarget[j].color = 0x0000;biggerTarget[j+72].color = 0x000;}
+		else{biggerTarget[j].color = 0xf800;biggerTarget[j+72].color = 0xf800;}
+	}
+	//column x-3 and x+3
+	for(int j=0;j<9;j++){
+		biggerTarget[j+9].xPos = x-3;
+		biggerTarget[j+9].yPos = y-4+j;
+		biggerTarget[j+63].xPos = x+3;
+		biggerTarget[j+63].yPos = y-4+j;
+		if(j==0||j==8){biggerTarget[j+9].color = 0x0000;biggerTarget[j+63].color = 0x000;}
+		else if(j==1||j==7){biggerTarget[j+9].color = 0xf800;biggerTarget[j+63].color = 0xf800;}
+		else{biggerTarget[j+9].color = 0xffff;biggerTarget[j+63].color = 0xffff;}
+	}
+	//column x-2 and x+2
+	for(int j=0;j<9;j++){
+		biggerTarget[j+18].xPos = x-2;
+		biggerTarget[j+18].yPos = y-4+j;
+		biggerTarget[j+54].xPos = x+2;
+		biggerTarget[j+54].yPos = y-4+j;
+		if(j==0||j==4||j==8){biggerTarget[j+18].color = 0xf800;biggerTarget[j+54].color = 0xf800;}
+		else{biggerTarget[j+18].color = 0xffff;biggerTarget[j+54].color = 0xffff;}
+	}
+	//column x-1 and x+1
+	for(int j=0;j<9;j++){
+		biggerTarget[j+27].xPos = x-1;
+		biggerTarget[j+27].yPos = y-4+j;
+		biggerTarget[j+45].xPos = x+1;
+		biggerTarget[j+45].yPos = y-4+j;
+		if(j==0||j==3||j==5||j==8){biggerTarget[j+27].color = 0xf800;biggerTarget[j+45].color = 0xf800;}
+		else{biggerTarget[j+27].color = 0xffff;biggerTarget[j+45].color = 0xffff;}
+	}
+	//column x
+	bool flip = false;
+	for(int j=0;j<9;j++){
+		biggerTarget[j+36].xPos = x;
+		biggerTarget[j+36].yPos = y-4+j;
+		if(!flip){biggerTarget[j+36].color = 0xf800; flip=true;}
+		else{biggerTarget[j+36].color = 0xffff; flip=false;}
+	}
+}
+
