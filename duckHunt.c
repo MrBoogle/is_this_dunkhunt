@@ -669,7 +669,7 @@ void letter_D(int x, int y){
 //---------
 
 
-void render_title(bool /*int*/ front){ /**Not sure if you changes this by accidient, but render_title takes and bool the way i coded it.**/
+void render_title(int front){ 
 	if(front){
 	letter_T(60,20);
 	letter_E(74,20);
