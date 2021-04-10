@@ -489,7 +489,7 @@ void info_MainPage(){
 	draw_text(5,35,ptr_);
         ptr_ = "2) START/CONTINUE USING ENTER KEY";
 	draw_text(5,38,ptr_);
-	ptr_ = "3) PRESS SPACE TO SHOT";
+	ptr_ = "3) PRESS SPACE TO SHOOT";
 	draw_text(5,41,ptr_);
 	ptr_ = "4) PRESS ESC TO RETURN TO THE START PAGE";
 	draw_text(5,44,ptr_);
@@ -518,6 +518,25 @@ point findShot(target* gameT) {
 	return result;
 }
 
+volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+
+void erase_screen() {
+	pixel_buffer_start = *pixel_ctrl_ptr;
+	clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
+
+
+	/* set back pixel buffer to start of SDRAM memory */
+	clear_text();
+
+	*(pixel_ctrl_ptr + 1) = 0xC0000000;
+	pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
+
+	clear_screen(CYAN);
+
+	clear_text();
+
+}
+
 
 
 int main(void) {
@@ -535,25 +554,13 @@ int main(void) {
 	initBullets();
 	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+	
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
                                         // back buffer
     /* now, swap the front/back buffers, to set the front buffer location */
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
-    pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(CYAN); // pixel_buffer_start points to the pixel buffer
-	
-	
-    /* set back pixel buffer to start of SDRAM memory */
-	clear_text();
-
-    *(pixel_ctrl_ptr + 1) = 0xC0000000;
-    pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
-	
-	clear_screen(CYAN);
-	
-	clear_text();
+    erase_screen();
 	//draw_text(gameGun.xPos,gameGun.yPos,ptr_);
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
@@ -567,6 +574,33 @@ int main(void) {
 	int drawRay;
 	int count = 0;
 	while(1) {
+		
+		if (!gameMode) {
+			info_MainPage();
+			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
+			RVALID   = PS2_data & 0x8000;// extract the RVALID field
+			if(RVALID) {
+				/*shift the next data byte into the display*/
+				byte1 = byte2;
+				byte2 = byte3;
+				byte3 = PS2_data & 0xFF;
+
+				HEX_PS2(strike, 0, 0);
+				if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
+					*(PS2_ptr) = 0xF4;
+				if (byte3 == 90) {
+				  	erase_screen();
+					gameMode = 1;
+				
+				}
+		}
+		
+		} else if (gameMode == 2) {
+			erase_screen();
+			
+			score = 0;
+		}
+		else {
 		
 		HEX_PS2(highScore, score, strike);
 		for (int tg = 0; tg < NUM_BOXES; tg++) {
@@ -647,6 +681,10 @@ int main(void) {
 				flash = 1;
 				
 			}
+			if (byte3 == 118) {	
+				gameMode = 0;
+				
+			}
 			
 			
 			//renderGun(&gameGun, it > 1, flash);
@@ -665,6 +703,12 @@ int main(void) {
 		}
 		renderCursor(&gameCursor, it > 1);
 		
+		if (strike == 8) {
+			gameMode = 2;
+			strike = 0;
+			if (highScore < score) highScore = score;
+			
+		}
 		
 		it++;
 		wait_for_vsync();
@@ -673,6 +717,7 @@ int main(void) {
 		
 
 		
+	}
 	}
 }
 
