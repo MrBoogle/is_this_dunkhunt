@@ -457,7 +457,219 @@ void draw_text(int x,int y,char* text_ptr){
 	}
 }
 
-/*void render_title(bool front){
+//------------LETTERS
+void letter_E(int x,int y){
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i < 3 || i > 26 || i>6 && i<9){
+				plot_pixel(x+j,y+i,0xffff);
+			}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+	}
+}
+
+void letter_V(int x,int y){
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i==26){plot_pixel(x+j,y+i,0xffff);}
+			if(i==27 && (j!=0 && j!=9) ){plot_pixel(x+j,y+i,0xffff);}
+			if(i==28 && (j!=0 && j!=9 && j!=1 && j!=8) ){plot_pixel(x+j,y+i,0xffff);}
+			if(i==29 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7) ){plot_pixel(x+j,y+i,0xffff);}
+			//if(i==29 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7 && j!=3 && j!=6) ){plot_pixel(x+j,y+i,0xffff);}
+		}
+		if(i<26){
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+		}
+	}
+}
+
+void letter_T(int x,int y){
+	for(int i=0;i<30;i++){
+		if(i<3){
+			for(int k=0;k<10;k++){
+				plot_pixel(x+k,y+i,0xffff);
+			}
+		}
+		plot_pixel(x+4,y+i,0xffff);
+		plot_pixel(x+5,y+i,0xffff);
+		plot_pixel(x+6,y+i,0xffff);	
+	}
+}
+void letter_R(int x,int y){
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i<3){plot_pixel(x+j,y+i,0xffff);}
+			if( (i == 7 || i == 9) && j != 9){plot_pixel(x+j,y+i,0xffff);}
+			if(i == 8 && (j != 9 && j != 8 ) ){plot_pixel(x+j,y+i,0xffff);}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		if(i<=6 || i>=10){
+			plot_pixel(x+7,y+i,0xffff);
+			plot_pixel(x+8,y+i,0xffff);	
+			plot_pixel(x+9,y+i,0xffff);
+		}
+	}
+
+}
+
+void letter_M(int x, int y){
+	for(int i=0;i<30;i++){
+		
+		for(int j=0;j<10;j++){
+			if( i==0 && (j<=2 || j>=8) ){plot_pixel(x+j,y+i,0xffff);}
+			if( i==1 && (j<=3 || j>=7) ){plot_pixel(x+j,y+i,0xffff);}
+			if( i==2 && j != 5){plot_pixel(x+j,y+i,0xffff);}
+			if(i==3){plot_pixel(x+j,y+i,0xffff);}
+			if( i==4 && (j>2 && j<8) ){plot_pixel(x+j,y+i,0xffff);}
+			if( i==5 && (j>3 && j<7) ){plot_pixel(x+j,y+i,0xffff);}
+			if( i==6 && j == 5){plot_pixel(x+j,y+i,0xffff);}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+2,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+		
+	}
+}
+	
+void letter_G(int x, int y){
+	for(int i=0;i<30;i++){
+		if(i<3 || i>26){
+			for(int k=0;k<10;k++){
+				plot_pixel(x+k,y+i,0xffff);
+			}
+		}
+		if(i!=3 && i!=4){
+			plot_pixel(x+8,y+i,0xffff);	
+			plot_pixel(x+9,y+i,0xffff);
+		}
+		if(i == 5 || i == 6){
+			plot_pixel(x+5,y+i,0xffff);	
+			plot_pixel(x+6,y+i,0xffff);	
+			plot_pixel(x+7,y+i,0xffff);	
+			plot_pixel(x+8,y+i,0xffff);	
+			plot_pixel(x+9,y+i,0xffff);
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		
+	}
+}
+void letter_O(int x,int y){
+	for(int i=0;i<30;i++){
+		if(i<3 || i>26){
+			for(int k=0;k<10;k++){
+				plot_pixel(x+k,y+i,0xffff);
+			}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+	}
+}
+void letter_I(int x,int y){
+	for(int i=0;i<30;i++){
+		if(i<3 || i>26){
+			for(int k=0;k<10;k++){
+				plot_pixel(x+k,y+i,0xffff);
+			}
+		}
+		plot_pixel(x+4,y+i,0xffff);
+		plot_pixel(x+5,y+i,0xffff);
+		plot_pixel(x+6,y+i,0xffff);	
+	}
+}
+void letter_N(int x,int y){
+	for(int i=0;i<30;i++){
+		if(i<3){
+			for(int k=0;k<10;k++){
+				plot_pixel(x+k,y+i,0xffff);
+			}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+	}
+}
+void letter_U(int x, int y){
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i > 26){plot_pixel(x+j,y+i,0xffff);}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+	}
+}
+
+void letter_C(int x, int y){
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i < 3 || i > 27){plot_pixel(x+j,y+i,0xffff);}
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+	}
+}
+
+void letter_A(int x, int y){
+    for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i < 3){plot_pixel(x+j,y+i,0xffff);}
+			if(i == 25 || i == 26){plot_pixel(x+j,y+i,0xffff);}	
+		}
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		plot_pixel(x+8,y+i,0xffff);	
+		plot_pixel(x+9,y+i,0xffff);
+	}
+}
+//letter D
+void letter_D(int x, int y){
+	int shift = 7;
+	for(int i=0;i<30;i++){//rows
+		
+		for(int j=0;j<10;j++){//columns 
+			if(i < 3){ /*if first few rows*/ plot_pixel(x+j,y+i,0xffff);}		
+		}
+		
+		plot_pixel(x,y+i,0xffff);
+		plot_pixel(x+1,y+i,0xffff);
+		if(i<=24){
+			plot_pixel(x+7,y+i,0xffff);
+			plot_pixel(x+8,y+i,0xffff);	
+			plot_pixel(x+9,y+i,0xffff);
+		}
+		if(i>24){
+			plot_pixel(x+shift,y+i,0xffff);
+			plot_pixel(x+shift+1,y+i,0xffff);	
+			plot_pixel(x+(shift+2),y+i,0xffff);
+			--shift;
+		}
+	}
+	plot_pixel(x+2,y+29,0xffff);	
+	plot_pixel(x+3,y+29,0xffff);
+}
+//---------
+
+
+void render_title(int front){
 	if(front){
 	letter_T(60,20);
 	letter_E(74,20);
@@ -480,7 +692,22 @@ void draw_text(int x,int y,char* text_ptr){
 	letter_E(187,105);
 	letter_R(201,105);
 	}
-}*/
+}
+
+void status_bar(){
+	char buf[100];
+	char *ptr_ = "STATUS BAR:";
+	draw_text(60,3,ptr_);
+	
+	snprintf(buf, 100, "SCORE: %d", score);
+	draw_text(60,6,buf);
+	
+	snprintf(buf, 100, "HIGHSCORE: %d", highScore);
+	draw_text(60,8,buf);
+	
+        snprintf(buf, 100, "STRIKE: %d", strike);
+	draw_text(60,10,buf);
+}
 
 void info_MainPage(){
 	char *ptr_ = "INSTRUCTIONS:";
@@ -575,9 +802,10 @@ int main(void) {
 	int count = 0;
 	while(1) {
 		
-		if (!gameMode) {
-			//erase_screen(0);
+		while (!gameMode) {
+			
 			info_MainPage();
+			render_title(1);
 			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 			RVALID   = PS2_data & 0x8000;// extract the RVALID field
 			if(RVALID) {
@@ -596,13 +824,20 @@ int main(void) {
 				}
 		}
 		
-		} else if (gameMode == 2) {
+		} 
+		if (gameMode == 2) {
 			erase_screen(0);
 			
+			status_bar();
+			render_title(0);
+			
+			while (gameMode == 2) {
+			}
 			score = 0;
+			strike = 0;
 		}
-		else {
-		
+		while (gameMode == 1) {
+		status_bar();
 		HEX_PS2(highScore, score, strike);
 		for (int tg = 0; tg < NUM_BOXES; tg++) {
 			TARGETS[tg].xPos += TARGETS[tg].xVel;
@@ -707,7 +942,6 @@ int main(void) {
 		
 		if (strike == 8) {
 			gameMode = 2;
-			strike = 0;
 			if (highScore < score) highScore = score;
 			erase_screen(0);
 			
