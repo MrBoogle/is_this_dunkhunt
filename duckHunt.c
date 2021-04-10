@@ -273,7 +273,7 @@ int checkShot(cursor *check) {
 			return 1;
 		} 
 	}
-	strike++;
+	//strike++;
 	return 0;
 }
 
@@ -564,9 +564,11 @@ int main(void) {
 	
 	int lineRedrawX[8];
 	int lineRedrawY[8];
+	int drawRay;
 	int count = 0;
 	while(1) {
-		int drawRay;
+		
+		HEX_PS2(highScore, score, strike);
 		for (int tg = 0; tg < NUM_BOXES; tg++) {
 			TARGETS[tg].xPos += TARGETS[tg].xVel;
 			TARGETS[tg].yPos += TARGETS[tg].yVel;
@@ -575,6 +577,7 @@ int main(void) {
 			if (TARGETS[tg].timer <= 0) {
 				
 			if (!TARGETS[tg].timer) {
+			strike++;
 			BULLETS[tg].xPos = TARGETS[tg].xPos;
 			BULLETS[tg].yPos = TARGETS[tg].yPos;
 				lineRedrawX[tg] = TARGETS[tg].xPos;
@@ -606,7 +609,7 @@ int main(void) {
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
 			
-			HEX_PS2(score, 0, 0);
+			HEX_PS2(strike, 0, 0);
 			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 				*(PS2_ptr) = 0xF4;
 			//If A is pressed
