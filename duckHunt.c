@@ -1105,9 +1105,10 @@ void robot_initHelper(int x,int y){
 	}
 }
 
-void print_robot(){
+void print_robot(){ /**Updated**/
 	for(int i=0;i<525;i++){
-		plot_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);
+		if(i==301||i==302||i==202||i==226||i==227||i==277){draw_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);}
+		if(robotImage[i].color != 0x0000){draw_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);}
 	}	
 }
 
