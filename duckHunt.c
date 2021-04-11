@@ -795,12 +795,13 @@ int main(void) {
 	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	
-    *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
+    	*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
                                         // back buffer
-    /* now, swap the front/back buffers, to set the front buffer location */
-    wait_for_vsync();
-    /* initialize a pointer to the pixel buffer, used by drawing functions */
-    erase_screen(0);
+    	/* now, swap the front/back buffers, to set the front buffer location */
+    	wait_for_vsync();
+    	/* initialize a pointer to the pixel buffer, used by drawing functions */
+    	erase_screen(0);
+	pixel_buffer_start = *pixel_ctrl_ptr;
 	//draw_text(gameGun.xPos,gameGun.yPos,ptr_);
 	volatile int*PS2_ptr = (int*)PS2_BASE;
 	int PS2_data, RVALID;
