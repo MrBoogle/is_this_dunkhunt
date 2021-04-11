@@ -32,7 +32,7 @@ void HEX_PS2(char,char,char);/**************************************************
 #define GREY 0xC618
 #define PINK 0xFC18
 #define ORANGE 0xFC00
-#define ROBO_BLUE BLUE
+#define ROBO_BLUE 0x231F
 
 #define ABS(x) (((x) > 0) ? (x) : -(x))
 
@@ -908,8 +908,8 @@ void initBullet(bullet* gameB) {
 	gameB->xPos = -5;
 	gameB->yPos = -5;
 	gameB->yPos = 0;
-	gameB->xVel = 1;
-	gameB->yVel = 1;
+	gameB->xVel = 0;
+	gameB->yVel = 0;
 	for (int i = 0; i < 8; i++) {
 		gameB->image[i] = bulletImage[i];
 		gameB->previous[i] = bulletImage[i];
@@ -1253,7 +1253,7 @@ void renderBullet(bullet* gameT, int valid) {/**Similar comment as above, just c
 }
 
 
-void draw_line(int x1, int y1, int x2, int y2, short int color) {
+void draw_line(int x1, int y1, int x2, int y2, short int color, int erase) {
 	int is_steep;// = abs(y2 - y1) > abs(x2 - x1)? 1: 0;
 	if (abs(y2 - y1) > abs(x2 - x1)) {
 		is_steep = 1;
@@ -1282,9 +1282,19 @@ void draw_line(int x1, int y1, int x2, int y2, short int color) {
 	
 	for (int i = x1; i < x2; i++) {
 		if (is_steep) {
-			plot_pixel(y, i, color);
+			if(!erase){
+				plot_pixel(y, i, color);
+			}
+			else {
+				plot_pixel(y, i, bg[i][y]);
+			}
 		} else {
-			plot_pixel(i, y, color);
+			if(!erase)
+			{
+				plot_pixel(i, y, color);
+			} else {
+				plot_pixel(i, y, bg[y][i]);
+			}
 		}
 		error = error + deltay;
 		if (error >= 0) {
@@ -1647,8 +1657,8 @@ void clear_text(){
 
 point findShot(target* gameT) {
 	point result;
-	result.xPos = (gameT->xPos - playerLoc.xPos)/5;
-	result.yPos = (gameT->yPos - playerLoc.yPos)/5;
+	result.xPos = -(gameT->xPos - playerLoc.xPos)/10;
+	result.yPos = -(gameT->yPos - playerLoc.yPos)/10;
 	return result;
 }
 
@@ -1674,6 +1684,7 @@ void erase_screen(int color, int bg) {
 	clear_text();
 
 }
+
 
 
 
@@ -1764,23 +1775,33 @@ int main(void) {
 			TARGETS[tg].timer--;
 			//printf("Timer: %d\n", TARGETS[tg].timer); 
 			if (TARGETS[tg].timer <= 0) {
-				
+				BULLETS[tg].xVel = findShot(&TARGETS[tg]).xPos;
+				BULLETS[tg].yVel = findShot(&TARGETS[tg]).yPos;
 			if (!TARGETS[tg].timer) {
 			strike++;
 			BULLETS[tg].xPos = TARGETS[tg].xPos;
 			BULLETS[tg].yPos = TARGETS[tg].yPos;
 				lineRedrawX[tg] = TARGETS[tg].xPos;
-				lineRedrawY[tg] = TARGETS[tg].xPos;
+				lineRedrawY[tg] = TARGETS[tg].yPos;
 			drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
-			if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED);
+			if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED, 0);
 			} 
 			if (TARGETS[tg].timer == -6 || TARGETS[tg].timer == -7) {
 				drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
-				if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN);
+				if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN, 1);
 			}
 			//findShot(&TARGETS[tg]);
-			BULLETS[tg].xPos += BULLETS[tg].xVel;
+			/*BULLETS[tg].xPos += BULLETS[tg].xVel;
 			BULLETS[tg].yPos += BULLETS[tg].yVel;
+				int radX = abs(BULLETS[tg].xPos - playerLoc.xPos) < 10;
+				int radY = abs(BULLETS[tg].yPos - playerLoc.yPos) < 10;
+				if (radX && radY) {
+					strike++;
+					BULLETS[tg].xPos = -5;
+					BULLETS[tg].yPos = -5;
+					BULLETS[tg].xVel = 0;
+					BULLETS[tg].yVel = 0;
+				}*/
 			
 			}
 			if (TARGETS[tg].timer == 0) BULLETS[tg].shot = 1;
@@ -1852,9 +1873,9 @@ int main(void) {
 			
 			
 		}
-		for (int t = 0; t < 8; t++) {
+		for (int t = 0; t < level; t++) {
 			renderTarget(&TARGETS[t], it > 1);
-			renderBullet(&BULLETS[t], it > 1);
+			//renderBullet(&BULLETS[t], it > 1);
 			
 		}
 		renderCursor(&gameCursor, it > 1);
