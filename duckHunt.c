@@ -1270,7 +1270,7 @@ void drawGun(int fire, int delete) {
 	for (int y = 0; y < 127; y++) {
 		for (int x = 0; x < 101; x++) {
 			if (delete) {
-				color = CYAN;	
+				color = bg[x+110][y+113];	
 			} else {
 				color = hand[fire][y][x]; 
 			}
@@ -1283,24 +1283,20 @@ void drawGun(int fire, int delete) {
 
 void renderGun(int valid, int flash) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
 	if (!valid) return;
-	if (flashed && !flash) {
-		//delete and reset
-		drawGun(1, 1);
+	if (valid <= 3) {
 		drawGun(0, 0);
-		flashed = 0;
-	}
-	if (flash && flashed) {
 		return;
 	}
-	if (flash) {
-		//delete default and draw flash
-		flashed = 1;
+	/*if (flash) {
 		drawGun(0, 1);
 		drawGun(1, 0);
-	}
-	if (!flash) {
-		drawGun(0, 0);
-	}
+		for (int w = 0; w <8; w++) {
+			wait_for_vsync();
+			flushPS2();
+		}
+		drawGun(1,1);
+		drawGun(0,0);
+	}*/
 	
 	
 }
@@ -1994,7 +1990,7 @@ int main(void) {
 			}
 			
 			
-			//renderGun(&gameGun, it > 1, flash);
+			
 			//draw_line(gameCursor.xPos, gameCursor.yPos, gameGun.xPos, gameGun.yPos, RED);
 			
 			
@@ -2008,9 +2004,12 @@ int main(void) {
 			
 			
 		}
-		if (gameMode == 1) renderCursor(&gameCursor, it > 1);
-			//renderGun(it > 1, flash);
+		if (gameMode == 1) 
+		{
+			renderCursor(&gameCursor, it > 1);
+			renderGun(it > 1, flash);
 			flash = 0;
+		}
 		
 		if (strike == 5) {
 			gameMode = 2;
