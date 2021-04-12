@@ -1047,7 +1047,7 @@ void initRobot(robot* gameR, int l, int t) {
 	gameR->yPos = t%60 + 160;//t%RESOLUTION_Y;
 	//robot_initHelper(gameR->xPos,gameR->yPos);
 	robot_initHelper(0,-80);
-	gameR->xVel = -1;//(t%2)*2 - 1;
+	gameR->xVel = -2;//(t%2)*2 - 1;
 	gameR->yVel = 0;//(t%2)*2 - 1;
 	gameR->shot = 0;
 	gameR->timer = t%81 + 300;
@@ -1276,7 +1276,7 @@ int checkShot(cursor *check) {
 	return 0;
 }
 
-void renderCursor(cursor* gameC, int valid) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
+void renderCursor(cursor* gameC, int valid, int f) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
 	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
@@ -1286,15 +1286,22 @@ void renderCursor(cursor* gameC, int valid) { /**Rendering is for graphics, this
 		gameC->toDelete[i] = gameC->previous[i];
 		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
 		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
-		int color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
-		if (color == YELLOW) color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];
+		int color;// = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+		color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];
 		gameC->previous[i].color = color; 
 		flushPS2();
 	}
 
 	//Draw current
+	int color;
+	
 	for (int i = 0; i < n; i++) {
-		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, gameC->image[i].color);
+		if (f) {
+		color = RED;
+	} else {
+		color = gameC->image[i].color;
+	}
+		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, color);
 		flushPS2();
 	}
 }
@@ -1729,7 +1736,7 @@ void info_MainPage(){
 	draw_text(5,38,ptr_);
 	ptr_ = "3) PRESS SPACE TO SHOOT";
 	draw_text(5,41,ptr_);
-	ptr_ = "4) PRESS ESC TO RETURN TO THE START PAGE";
+	ptr_ = "4) PRESS ENTER TO RESTART TO THE START PAGE";
 	draw_text(5,44,ptr_);
 	
 	//Highest Saved score
@@ -1737,6 +1744,13 @@ void info_MainPage(){
 	snprintf(buf, 100, "HIGH SCORE: %d", highScore); // puts string into buffer
 	draw_text(5,20,buf);
 }
+
+void info_GO_Page() {
+	char *ptr_ = "PRESS ENTER TO RESTART";
+	draw_text(28,41,ptr_);
+	
+}
+
 
 void draw_level(int level) {
 	char buf[100];
@@ -1863,12 +1877,13 @@ int main(void) {
 			}
 		
 		} 
+		//GAME OVER PAGE
 		if (gameMode == 2) {
 			erase_screen(0, 0);
 			
 			status_bar();
 			render_title(0);
-			
+			info_GO_Page();
 			while (gameMode == 2) {
 				PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 			RVALID   = PS2_data & 0x8000;// extract the RVALID field
@@ -1925,6 +1940,9 @@ int main(void) {
 				drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
 				if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN, 1);
 			}
+			if (TARGETS[tg].timer == -7) {
+				TARGETS[tg].timer = 400;
+			}
 
 			}
 	
@@ -1974,11 +1992,11 @@ int main(void) {
 			if (byte3 == 41) {	
 				if (!gameCursor.shot) gameCursor.shot = 1;
 				checkShot(&gameCursor);
-				flash = 1;
+				flash = 4;
 				
 			}
-			//Esc pressed
-			if (0/*byte3 == 118*/) {	
+			//Enter pressed
+			if (byte3 == 90) {	
 				gameMode = 0;
 				strike = 0;
 				score = 0;
@@ -2001,10 +2019,10 @@ int main(void) {
 		}
 		if (gameMode == 1) 
 		{
-			renderCursor(&gameCursor, it > 1);
+			renderCursor(&gameCursor, it > 1, flash);
 			renderGun(it, 0);
 			
-			flash = 0;
+			if(flash)flash--;
 		}
 		
 		if (strike == 5) {
