@@ -64,6 +64,7 @@ int strike = 0;
 int level = 1;
 int flashed = 0;
 
+void draw_text(int x,int y,char* text_ptr);
 
 //Robot gun
 const uint16_t roboGun[38][45] = {
@@ -943,36 +944,13 @@ struct gun {
 
 
 
-struct bullet {
-	int xPos;
-	int yPos;
-	int xVel;
-	int yVel;
-	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
-	point image[25];
-	point previous[25];
-	point toDelete[25];
-};
-
-point bulletImage[25] = {
-	{-2, 2, BULLET_CLR}, {-1, 2, BULLET_CLR}, {0, 2, BULLET_CLR}, {1, 2, BULLET_CLR}, {2, 2, BULLET_CLR},	
-	{-2, 1, BULLET_CLR}, {-1, 1, BULLET_CLR}, {0, 1, BULLET_CLR}, {1, 1, BULLET_CLR}, {2, 1, BULLET_CLR},
-	{-2, 0, BULLET_CLR}, {-1, 0, BULLET_CLR}, {0, 0, BULLET_CLR}, {1, 0, BULLET_CLR}, {2, 0, BULLET_CLR},
-	{-2, -1, BULLET_CLR}, {-1, -1, BULLET_CLR}, {0, -1, BULLET_CLR}, {1, -1, BULLET_CLR}, {2, -1, BULLET_CLR},
-	{-2, -2, BULLET_CLR}, {-1, -2, BULLET_CLR}, {0, -2, BULLET_CLR}, {1, -2, BULLET_CLR}, {2, -2, BULLET_CLR}
-	
-};
-
-
-typedef struct bullet bullet;
-
-bullet BULLETS[NUM_BOXES];
 
 typedef struct gun gun;
 
 point gunImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
 
 typedef struct cursor cursor;
+
 void initTargets() {
 	srand(time(0));
 	for (int i = 0; i < level; i++) {
@@ -1008,26 +986,6 @@ void initCursor(cursor* gameC) {
 }
 
 
-void initBullet(bullet* gameB) {
-	//Initialize cursor
-	gameB->xPos = -5;
-	gameB->yPos = -5;
-	gameB->yPos = 0;
-	gameB->xVel = 0;
-	gameB->yVel = 0;
-	for (int i = 0; i < 8; i++) {
-		gameB->image[i] = bulletImage[i];
-		gameB->previous[i] = bulletImage[i];
-		gameB->toDelete[i] = bulletImage[i];
-	}
-	
-}
-
-void initBullets() {
-	for (int b = 0; b < NUM_BOXES; b++) {
-		initBullet(&BULLETS[b]);
-	}
-}
 
 void initTarget(target* gameT, int t) {
 	//Initialize cursor
@@ -1075,16 +1033,21 @@ typedef struct robot {
 
 }robot;	
 	
-void initRobot(robot* gameR, int t) {
+
+robot ROBOTS[NUM_BOXES];
+
+
+void initRobot(robot* gameR, int l, int t) {
 	//Initialize Robot
 	
-	gameR->xPos = t%RESOLUTION_X;
-	gameR->yPos = t%RESOLUTION_Y;
-	robot_initHelper(gameR->xPos,gameR->yPos);
-	gameR->xVel = (t%2)*2 - 1;
-	gameR->yVel = (t%2)*2 - 1;
+	gameR->xPos = 320 + l*50;//t%RESOLUTION_X;
+	gameR->yPos = 200;//t%RESOLUTION_Y;
+	//robot_initHelper(gameR->xPos,gameR->yPos);
+	robot_initHelper(0,-80);
+	gameR->xVel = -1;//(t%2)*2 - 1;
+	gameR->yVel = 0;//(t%2)*2 - 1;
 	gameR->shot = 0;
-	gameR->timer = t%81 + 80;
+	gameR->timer = t%81 + 300;
 	for (int i = 0; i < 525; i++) {
 		gameR->image[i] = robotImage[i];
 		gameR->previous[i] = robotImage[i];
@@ -1092,6 +1055,14 @@ void initRobot(robot* gameR, int t) {
 	}
 }
 
+
+void initRobots() {
+	srand(time(0));
+	for (int l = 0; l < level; l++) {
+		initRobot(&ROBOTS[l], l, rand());
+	
+	}
+}
 
 //this function fills the robotImage array at the location defined by (x,y) point
 void robot_initHelper(int x,int y){
@@ -1212,9 +1183,62 @@ void robot_initHelper(int x,int y){
 
 void print_robot(){
 	for(int i=0;i<525;i++){
-		plot_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);
+		if (robotImage[i].color) plot_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);
 	}	
 }
+
+void renderRobot(robot* gameC, int valid) {
+	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
+		int deleteValid = gameC->toDelete[i].xPos <= 320 && gameC->toDelete[i].xPos >= 0 && gameC->toDelete[i].yPos <= 240 && gameC->toDelete[i].yPos >= 0;
+		if (valid && deleteValid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, gameC->toDelete[i].color);
+		//plot_pixel(0, 0, RED);
+		gameC->toDelete[i] = gameC->previous[i];
+		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
+		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
+		gameC->previous[i].color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+		flushPS2();
+	}
+
+	//Draw current
+	for (int i = 0; i < n && !gameC->shot; i++) {
+		int x = gameC->xPos + gameC->image[i].xPos;
+		int y = gameC->yPos + gameC->image[i].yPos;
+		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
+		if (gameC->image[i].color)plot_pixel(x, y, gameC->image[i].color);
+		flushPS2();
+	}
+}
+
+
+void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
+	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
+	//Delete toDel and shift previous into del
+	//Shidt current into prev
+	for (int i = 0; i < n; i++){
+		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
+		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
+		//plot_pixel(0, 0, RED);
+		gameT->toDelete[i] = gameT->previous[i];
+		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
+		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
+		gameT->previous[i].color = bg[gameT->yPos + gameT->image[i].yPos][gameT->xPos + gameT->image[i].xPos];
+		flushPS2();
+	}
+
+	//Draw current
+	for (int i = 0; i < n && !gameT->shot; i++) {
+		int x = gameT->xPos + gameT->image[i].xPos;
+		int y = gameT->yPos + gameT->image[i].yPos;
+		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
+		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
+		flushPS2();
+	}
+}
+
+
 
 
 
@@ -1233,8 +1257,15 @@ int checkShot(cursor *check) {
 		int deltaY = abs(check->yPos - TARGETS[i].yPos);
 		if (deltaY < SHOT_RANGE && deltaX < SHOT_RANGE) {
 			score++;
-			check->shot = 1;
+			//check->shot = 1;
 			TARGETS[i].shot = 1;
+			TARGETS[i].xPos = -100;
+			TARGETS[i].yPos = -100;
+			TARGETS[i].xVel = 0;
+			
+			ROBOTS[i].shot = 1;
+			
+			ROBOTS[i].xVel = 0;
 			return 1;
 		} 
 	}
@@ -1303,56 +1334,10 @@ void renderGun(int valid, int flash) { /**Rendering is for graphics, this fucnti
 
 
 
-void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
-	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
-	//Delete toDel and shift previous into del
-	//Shidt current into prev
-	for (int i = 0; i < n; i++){
-		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
-		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
-		//plot_pixel(0, 0, RED);
-		gameT->toDelete[i] = gameT->previous[i];
-		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
-		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
-		gameT->previous[i].color = bg[gameT->yPos + gameT->image[i].yPos][gameT->xPos + gameT->image[i].xPos];
-		flushPS2();
-	}
-
-	//Draw current
-	for (int i = 0; i < n && !gameT->shot; i++) {
-		int x = gameT->xPos + gameT->image[i].xPos;
-		int y = gameT->yPos + gameT->image[i].yPos;
-		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
-		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
-		flushPS2();
-	}
-}
 
 
-void renderBullet(bullet* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
-	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
-	//Delete toDel and shift previous into del
-	//Shidt current into prev
-	for (int i = 0; i < n; i++){
-		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
-		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
-		//plot_pixel(0, 0, RED);
-		gameT->toDelete[i] = gameT->previous[i];
-		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
-		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
-		gameT->previous[i].color = CYAN;// *(short int *)(pixel_buffer_start + (gameT->yPos + gameT->image[i].yPos << 10) + (gameT->xPos + gameT->image[i].xPos << 1));
-		flushPS2();
-	}
 
-	//Draw current
-	for (int i = 0; i < n; i++) {
-		int x = gameT->xPos + gameT->image[i].xPos;
-		int y = gameT->yPos + gameT->image[i].yPos;
-		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
-		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
-		flushPS2();
-	}
-}
+
 
 
 void draw_line(int x1, int y1, int x2, int y2, short int color, int erase) {
@@ -1800,17 +1785,19 @@ void erase_screen(int color, int bg) {
 
 
 int main(void) {
+	start:
 	level = 1;
+	strike = 0;
+	score = 0;
 	int gameMode = 0;// 0 = start, 1 is game, 2 is game over
 	int it = 0;
 	int flash = 0;
+	int prevScore;
 	cursor gameCursor;
 	gun gameGun;
 	gameCursor.shot = 0;
 	initGun(&gameGun);
 	initCursor(&gameCursor);
-	robot gameRobot;
-	initRobot(&gameRobot, 200);
 	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	
@@ -1839,6 +1826,7 @@ int main(void) {
 			drawTerm();
 			info_MainPage();
 			render_title(1);
+			
 			//drawRobo(160, 120);
 			while (!gameMode) {
 			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
@@ -1857,7 +1845,10 @@ int main(void) {
 				  	erase_screen(CYAN, 1);
 					
 					gameMode = 1;
+					score = 0;
+					prevScore = score;
 					initTargets();
+					initRobots();
 					//initCursor(&gameCursor);
 					it = 0;
 				
@@ -1885,11 +1876,11 @@ int main(void) {
 					*(PS2_ptr) = 0xF4;
 				if (byte3 == 90) {
 				  	erase_screen(CYAN, 1);
-					
-					gameMode = 1;
-					initTargets();
-					//initCursor(&gameCursor);
+					gameMode = 0;
 					it = 0;
+					goto start;
+					
+					
 				
 				}
 		}
@@ -1898,12 +1889,15 @@ int main(void) {
 			strike = 0;
 		}
 		while (gameMode == 1) {
-		
+		//print_robot();
+			
 		status_bar();
 			int checkLevel = 0;
 		for (int tg = 0; tg < level; tg++) {
 			TARGETS[tg].xPos += TARGETS[tg].xVel;
 			TARGETS[tg].yPos += TARGETS[tg].yVel;
+			ROBOTS[tg].xPos += ROBOTS[tg].xVel;
+			ROBOTS[tg].yPos += ROBOTS[tg].yVel;
 			TARGETS[tg].timer--;
 			checkLevel += TARGETS[tg].shot; 
 			//printf("Timer: %d\n", TARGETS[tg].timer); 
@@ -1928,11 +1922,9 @@ int main(void) {
 			}
 	
 			if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
-			if (TARGETS[tg].yPos == 0 || TARGETS[tg].yPos == 240-5) TARGETS[tg].yVel *= -1; 
+			if (ROBOTS[tg].xPos == -10) ROBOTS[tg].xPos = 330; 
 		}
 	
-		
-		//HEX_PS2(byte1, 0, 0);
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
 		RVALID   = PS2_data & 0x8000;// extract the RVALID field
 		if(RVALID) {
@@ -1941,7 +1933,6 @@ int main(void) {
 			byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
 			
-			HEX_PS2(strike, 0, 0);
 			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
 				*(PS2_ptr) = 0xF4;
 			//If A is pressed
@@ -1961,15 +1952,15 @@ int main(void) {
 			//If W is pressed
 			if (byte3 == 27) {
 				gameCursor.yPos+=5;
-				if (gameCursor.yPos > RESOLUTION_Y-1) {
-					gameCursor.yPos = RESOLUTION_Y-1;
+				if (gameCursor.yPos > 150) {
+					gameCursor.yPos = 150;
 				}
 			}
 			//If S is pressed
 			if (byte3 == 29) {
 				gameCursor.yPos-=5;
-				if (gameCursor.yPos < 0) {
-					gameCursor.yPos = 0;
+				if (gameCursor.yPos < 5) {
+					gameCursor.yPos = 5;
 				}
 			}
 			//If space is pressed
@@ -1989,25 +1980,22 @@ int main(void) {
 				
 			}
 			
-			
-			
-			//draw_line(gameCursor.xPos, gameCursor.yPos, gameGun.xPos, gameGun.yPos, RED);
-			
-			
-			
-			
-			
+
 			
 		}
+		score = prevScore;
 		for (int t = 0; t < level && gameMode == 1; t++) {
+			score += TARGETS[t].shot;
 			renderTarget(&TARGETS[t], it > 1);
+			renderRobot(&ROBOTS[t], it > 1);
 			
 			
 		}
 		if (gameMode == 1) 
 		{
 			renderCursor(&gameCursor, it > 1);
-			renderGun(it > 1, flash);
+			renderGun(it, 0);
+			
 			flash = 0;
 		}
 		
@@ -2019,7 +2007,9 @@ int main(void) {
 		}
 			if (checkLevel == level) {
 				level++;
+				prevScore = score;
 				initTargets();
+				initRobots();
 			}
 		
 		it++;
