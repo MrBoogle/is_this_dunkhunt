@@ -40,7 +40,7 @@ void HEX_PS2(char,char,char);/**************************************************
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
-#define CURSOR_CLR RED
+#define CURSOR_CLR YELLOW
 /* Constants for animation */
 #define BOX_LEN 4
 #define NUM_BOXES 8
@@ -918,8 +918,7 @@ struct target {
 };
 
 typedef struct target target;
-void initTarget(target* gameT, int t);
-target TARGETS[NUM_BOXES];
+
 
 
 struct cursor {
@@ -942,8 +941,23 @@ struct gun {
 	point toDelete[127][101];
 };
 
+typedef struct robot {
+	int xPos;
+	int yPos;
+	int xVel;
+	int yVel;
+	int timer;
+	int shot; //1 if shot, 0 if not shot
+	int spawned; //Only draw and register shots when set to 1
+	point image[525];
+	point previous[525];
+	point toDelete[525];
 
+}robot;	
 
+robot ROBOTS[NUM_BOXES];
+void initTarget(target* gameT, int t, robot* gameR);
+target TARGETS[NUM_BOXES];
 
 typedef struct gun gun;
 
@@ -956,7 +970,7 @@ void initTargets() {
 	for (int i = 0; i < level; i++) {
 		
 		
-		initTarget(&TARGETS[i], rand());  
+		initTarget(&TARGETS[i], rand(), &ROBOTS[i]);  
 	}
 	
 }
@@ -987,11 +1001,12 @@ void initCursor(cursor* gameC) {
 
 
 
-void initTarget(target* gameT, int t) {
+
+void initTarget(target* gameT, int t, robot *gameR) {
 	//Initialize cursor
 	
-	gameT->xPos = t%RESOLUTION_X;
-	gameT->yPos = RESOLUTION_Y/2;
+	gameT->xPos = gameR->xPos;//t%RESOLUTION_X;
+	gameT->yPos = gameR->yPos-80;//RESOLUTION_Y/2;
 	gameT->xVel = -1;//(t%2)*2 - 1;
 	gameT->yVel = 0;//(t%2)*2 - 1;
 	gameT->shot = 0;
@@ -1019,29 +1034,17 @@ void initGun(gun* gameG) {
 
 point robotImage[525];
 
-typedef struct robot {
-	int xPos;
-	int yPos;
-	int xVel;
-	int yVel;
-	int timer;
-	int shot; //1 if shot, 0 if not shot
-	int spawned; //Only draw and register shots when set to 1
-	point image[525];
-	point previous[525];
-	point toDelete[525];
 
-}robot;	
 	
 
-robot ROBOTS[NUM_BOXES];
+
 
 
 void initRobot(robot* gameR, int l, int t) {
 	//Initialize Robot
 	
 	gameR->xPos = 320 + l*50;//t%RESOLUTION_X;
-	gameR->yPos = 200;//t%RESOLUTION_Y;
+	gameR->yPos = t%60 + 160;//t%RESOLUTION_Y;
 	//robot_initHelper(gameR->xPos,gameR->yPos);
 	robot_initHelper(0,-80);
 	gameR->xVel = -1;//(t%2)*2 - 1;
@@ -1198,7 +1201,7 @@ void renderRobot(robot* gameC, int valid) {
 		gameC->toDelete[i] = gameC->previous[i];
 		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
 		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
-		gameC->previous[i].color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+		gameC->previous[i].color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];//*(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
 		flushPS2();
 	}
 
@@ -1217,7 +1220,7 @@ void renderTarget(target* gameT, int valid) {/**Similar comment as above, just c
 	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
-	for (int i = 0; i < n; i++){
+	for (int i = 0; i < n && 0; i++){
 		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
 		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
 		//plot_pixel(0, 0, RED);
@@ -1283,7 +1286,9 @@ void renderCursor(cursor* gameC, int valid) { /**Rendering is for graphics, this
 		gameC->toDelete[i] = gameC->previous[i];
 		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
 		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
-		gameC->previous[i].color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+		int color = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+		if (color == YELLOW) color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];
+		gameC->previous[i].color = color; 
 		flushPS2();
 	}
 
@@ -1847,8 +1852,9 @@ int main(void) {
 					gameMode = 1;
 					score = 0;
 					prevScore = score;
-					initTargets();
+					
 					initRobots();
+					initTargets();
 					//initCursor(&gameCursor);
 					it = 0;
 				
@@ -1894,10 +1900,11 @@ int main(void) {
 		status_bar();
 			int checkLevel = 0;
 		for (int tg = 0; tg < level; tg++) {
-			TARGETS[tg].xPos += TARGETS[tg].xVel;
-			TARGETS[tg].yPos += TARGETS[tg].yVel;
+			
 			ROBOTS[tg].xPos += ROBOTS[tg].xVel;
 			ROBOTS[tg].yPos += ROBOTS[tg].yVel;
+			TARGETS[tg].xPos = ROBOTS[tg].xPos;
+			//TARGETS[tg].yPos = ROBOTS[tg].yPos;
 			TARGETS[tg].timer--;
 			checkLevel += TARGETS[tg].shot; 
 			//printf("Timer: %d\n", TARGETS[tg].timer); 
@@ -1921,7 +1928,7 @@ int main(void) {
 
 			}
 	
-			if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
+			//if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
 			if (ROBOTS[tg].xPos == -10) ROBOTS[tg].xPos = 330; 
 		}
 	
@@ -1986,8 +1993,9 @@ int main(void) {
 		score = prevScore;
 		for (int t = 0; t < level && gameMode == 1; t++) {
 			score += TARGETS[t].shot;
-			renderTarget(&TARGETS[t], it > 1);
+			
 			renderRobot(&ROBOTS[t], it > 1);
+			renderTarget(&TARGETS[t], it > 1);
 			
 			
 		}
@@ -2008,8 +2016,9 @@ int main(void) {
 			if (checkLevel == level) {
 				level++;
 				prevScore = score;
-				initTargets();
 				initRobots();
+				initTargets();
+				
 			}
 		
 		it++;
