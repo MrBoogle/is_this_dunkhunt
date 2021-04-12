@@ -1047,7 +1047,7 @@ void initRobot(robot* gameR, int l, int t) {
 	gameR->yPos = t%60 + 160;//t%RESOLUTION_Y;
 	//robot_initHelper(gameR->xPos,gameR->yPos);
 	robot_initHelper(0,-80);
-	gameR->xVel = -2;//(t%2)*2 - 1;
+	gameR->xVel = -level/2 - 1;//(t%2)*2 - 1;
 	gameR->yVel = 0;//(t%2)*2 - 1;
 	gameR->shot = 0;
 	gameR->timer = t%81 + 300;
@@ -1192,6 +1192,7 @@ void print_robot(){
 
 void renderRobot(robot* gameC, int valid) {
 	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
+	int onScreen = gameC->xPos < 340 && gameC->xPos > -20;
 	//Delete toDel and shift previous into del
 	//Shidt current into prev
 	for (int i = 0; i < n; i++){
@@ -1206,7 +1207,8 @@ void renderRobot(robot* gameC, int valid) {
 	}
 
 	//Draw current
-	for (int i = 0; i < n && !gameC->shot; i++) {
+	
+	for (int i = 0; i < n && !gameC->shot && onScreen; i++) {
 		int x = gameC->xPos + gameC->image[i].xPos;
 		int y = gameC->yPos + gameC->image[i].yPos;
 		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
@@ -1675,7 +1677,7 @@ void letter_D(int x, int y){
 
 void render_title(int front){ 
 	int xOff = -40;
-	if(front){
+	if(front == 1){
 	letter_T(60+xOff,20);
 	letter_E(74+xOff,20);
 	letter_R(88+xOff,20);
@@ -1686,6 +1688,21 @@ void render_title(int front){
 	letter_T(158+xOff,20);
 	letter_O(172+xOff,20);
 	letter_R(186+xOff,20);
+	} 
+	else if(front == 2) {
+		int xOff = 0;
+		int h = 105;
+	letter_T(99+xOff,h);
+	letter_E(113+xOff,h);
+	letter_R(127+xOff,h);
+	letter_M(141+xOff,h);
+	letter_I(159+xOff,h);
+	letter_N(173+xOff,h);
+	letter_A(187+xOff,h);
+	letter_T(201+xOff,h);
+	letter_E(215+xOff,h);
+	letter_D(229, h);
+		
 	}
 	else{
 	letter_G(99,105);
@@ -1736,7 +1753,7 @@ void info_MainPage(){
 	draw_text(5,38,ptr_);
 	ptr_ = "3) PRESS SPACE TO SHOOT";
 	draw_text(5,41,ptr_);
-	ptr_ = "4) PRESS ENTER TO RESTART TO THE START PAGE";
+	//ptr_ = "4) PRESS ENTER TO RESTART TO THE START PAGE";
 	draw_text(5,44,ptr_);
 	
 	//Highest Saved score
@@ -1805,10 +1822,12 @@ void erase_screen(int color, int bg) {
 
 int main(void) {
 	start:
-	level = 1;
+	
+	
 	strike = 0;
 	score = 0;
-	int gameMode = 0;// 0 = start, 1 is game, 2 is game over
+	level = 1;
+	int gameMode = 0;// 0 = start, 1 is game, 2 is game over, 3 game is won
 	int it = 0;
 	int flash = 0;
 	int prevScore;
@@ -1869,7 +1888,6 @@ int main(void) {
 					
 					initRobots();
 					initTargets();
-					//initCursor(&gameCursor);
 					it = 0;
 				
 				}
@@ -1877,6 +1895,14 @@ int main(void) {
 			}
 		
 		} 
+		if (gameMode == 3) {
+			erase_screen(0, 0);
+			
+			status_bar();
+			render_title(2);
+			info_GO_Page();
+		
+		}
 		//GAME OVER PAGE
 		if (gameMode == 2) {
 			erase_screen(0, 0);
@@ -1899,6 +1925,7 @@ int main(void) {
 				  	erase_screen(CYAN, 1);
 					gameMode = 0;
 					it = 0;
+					level = 1;
 					goto start;
 					
 					
@@ -1947,7 +1974,7 @@ int main(void) {
 			}
 	
 			//if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
-			if (ROBOTS[tg].xPos == -10) ROBOTS[tg].xPos = 330; 
+			if (ROBOTS[tg].xPos <= -10) ROBOTS[tg].xPos = 330; 
 		}
 	
 		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
@@ -2002,6 +2029,7 @@ int main(void) {
 				score = 0;
 				if (highScore < score) highScore = score;
 				erase_screen(0, 0);
+				goto start;
 				
 			}
 			
@@ -2033,6 +2061,7 @@ int main(void) {
 		}
 			if (checkLevel == level) {
 				level++;
+				//if (level >= 5) gameMode = 3;
 				prevScore = score;
 				initRobots();
 				initTargets();
