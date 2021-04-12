@@ -1,11 +1,14 @@
-//#include"address_map_arm.h"/*function prototypes*/
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <time.h>
+
+
 int HEX3_HEX0_BASE = 0xFF200020;
 int HEX5_HEX4_BASE = 0xFF200030;
-PS2_BASE = 0xFF200100;
-void HEX_PS2(char,char,char);/********************************************************************************This program demonstrates use of the PS/2 port by displaying the last three*bytes of data received from the PS/2 port on the HEX displays.******************************************************************************/
+int PS2_BASE = 0xFF200100;
 
 
-/* This files provides address values that exist in the system */
 
 #define SDRAM_BASE            0xC0000000
 #define FPGA_ONCHIP_BASE      0xC8000000
@@ -40,74 +43,31 @@ void HEX_PS2(char,char,char);/**************************************************
 #define RESOLUTION_X 320
 #define RESOLUTION_Y 240
 
-#define CURSOR_CLR YELLOW
+
 /* Constants for animation */
-#define BOX_LEN 4
+#define CURSOR_CLR YELLOW
 #define NUM_BOXES 8
 
 #define FALSE 0
 #define TRUE 1
 #define SHOT_RANGE 10
-#define BULLET_CLR YELLOW
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-// Begin part1.s for Lab 7
+
+
 void plot_pixel(int x, int y, short int line_color);
+void flushPS2();
 
 volatile int pixel_buffer_start; // global variable
 
+//Global game variables
 int score = 0;
 int highScore = 0;
 int strike = 0;
 int level = 1;
-int flashed = 0;
+
 
 void draw_text(int x,int y,char* text_ptr);
 
-//Robot gun
-const uint16_t roboGun[38][45] = {
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,55002,6371,6371,6371,6371,6371,6371,6371,35985,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,52825,0,0,0,0,0,0,0,27469,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,52825,0,0,0,0,0,0,0,25388,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,52825,2048,2048,2048,2048,2048,2048,2048,29550,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65144,57760,57760,57760,57760,57760,51458,38917,50000,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,62900,61888,61888,61888,61888,61888,53538,43013,49838,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,42292,6339,6339,6339,6339,6339,6339,6339,6274,6176,6176,6176,6176,6176,6176,4097,6209,6339,6339,6339,6339,6339,6339,6339,21162,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,29582,2113,2113,2113,2113,2113,2113,2113,2112,2048,2080,2113,2113,2113,2113,2113,2113,2113,2112,2080,2080,2080,2080,2080,16903,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,40211,6339,35753,58861,58861,58861,58861,58861,58861,58861,48103,37184,45894,58861,58861,58861,58861,58861,58861,58861,56617,52096,52096,52096,52096,52096,41697,6339,19049,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,31727,0,35752,65166,65166,65166,65166,65166,65134,63086,54312,41312,50054,63086,65134,65199,65167,65166,65166,65166,62890,58336,58336,58336,58336,58336,43744,0,14791,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,33808,0,35618,64964,64964,64964,62723,58433,52001,43489,41409,41312,41377,43489,52167,65199,65099,64964,64964,64964,60611,51872,47712,43424,45536,51872,39424,0,14791,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,35921,0,35618,64931,64931,64899,60610,58336,49889,43490,43490,43490,41442,39362,50055,63086,65066,64964,64932,64931,60578,49792,47680,39297,43457,49793,37344,0,14759,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,35921,0,35618,64931,62690,58400,49888,41376,52333,61244,61244,61244,46908,18204,27921,43489,52134,65166,65098,64931,60578,49792,43683,27403,27403,27435,21096,0,2081,6307,16936},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,33808,0,35618,64931,60610,58368,49824,41312,50286,61309,61309,61309,46974,16287,25907,41312,50022,65199,65099,64931,60578,49792,43684,25388,27437,27469,21130,2113,2113,0,12678},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,31695,0,35618,64931,60610,58368,49824,41312,31823,20383,20383,20383,18335,16287,25907,41312,50022,65199,65099,64931,60578,49792,43684,25388,31695,44373,46453,52792,40147,0,12678},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,31727,0,35618,64931,62690,58368,49856,41344,29774,16222,16222,16222,16222,16222,27922,41377,50054,65166,65099,64931,60578,49792,43684,25388,31695,44373,46486,52857,42227,0,12678},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,33808,0,35618,64931,64931,64899,60578,56256,47841,39394,39394,39394,39394,39394,48039,63054,65034,64964,64932,64931,60578,49792,43684,25388,27437,27469,21162,4226,2145,0,12678},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,27469,0,35586,64899,64899,64899,60610,58368,49888,41376,41344,41312,41344,41376,50054,65134,65066,64899,64899,64899,60578,49792,43684,27404,27404,27436,21097,0,32,4226,16872},
-	{31727,8452,8452,8452,8452,8452,8452,8452,8452,8452,8452,6307,4258,4258,2113,0,31296,58400,58400,58400,58368,58368,58336,56256,49856,41312,47712,56256,58336,58401,58401,58400,58400,58400,56192,49792,47680,39297,41441,49793,37345,0,12710,65535,65535},
-	{16904,0,2113,4194,4194,4194,32,0,2113,4194,4194,4194,4194,4194,2081,0,29184,54208,54208,54208,56256,56256,56256,56256,49856,41312,47712,56256,56256,56256,56256,56256,56256,56256,54112,49760,45600,37216,41376,47712,37344,4226,16936,65535,65535},
-	{16904,0,50776,61309,63390,63390,14823,0,31695,61309,59196,54970,48631,48631,21130,0,2080,4160,4160,4160,22784,41376,41376,41376,41344,41312,41344,41376,41376,41376,41376,41376,41376,41376,41376,41344,31008,2080,4128,4128,16903,65535,65535,65535,65535},
-	{16904,0,52857,63390,63390,63390,16904,0,35953,59196,52825,48631,48631,48631,21130,0,0,0,2113,4226,20737,37216,39297,41410,41345,41312,41312,41312,41345,41410,41409,43456,41408,41376,41344,37216,26913,4226,4226,4226,19049,65535,65535,65535,65535},
-	{16904,0,21130,31727,33808,27501,8484,0,19017,27501,12710,4226,4226,4226,2081,0,0,0,31727,61277,31694,2080,21166,42365,43794,45093,45093,45093,43598,42365,50547,62819,60610,56256,39584,2080,21064,65535,65535,65535,65535,65535,65535,65535,65535},
-	{31695,6307,19017,23275,23275,23275,8452,0,16904,25388,10597,2113,32,0,2080,4161,4161,4161,33775,61277,29614,0,21199,44543,43859,45093,45093,45093,45679,44543,50645,64931,62754,58368,39584,0,16936,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,19017,2113,2113,2113,0,0,16904,25388,25356,25324,10533,0,27012,47751,47751,47751,24964,4226,2113,0,29614,63423,62737,61888,61888,61888,62508,63423,63221,64931,62754,58368,39584,0,2081,4226,21162,65535,65535,65535,65535,65535,65535},
-	{65535,65535,33808,6307,6339,6307,2081,0,14823,23275,23275,23275,10533,0,29060,51879,51879,51879,26947,2080,2048,0,29581,63324,62704,61920,61920,61920,62475,63324,63123,62819,60610,54176,35456,0,32,2145,19017,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,25356,0,32,2113,2113,2113,32,0,22754,37251,37251,37251,35171,35138,16545,0,20705,41442,41377,41344,41344,41344,41377,41442,41409,41408,28992,4160,2080,0,10565,52857,42292,4226,25324,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,42260,8452,8452,4258,4258,4258,4258,4258,20738,35138,35138,35138,35138,35138,16545,0,18592,37184,39296,43456,41376,37184,39296,43456,41376,37184,26881,4258,4258,4258,14791,52857,42260,0,19017,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,48631,2080,2080,2080,2080,2080,0,0,0,2080,29313,62819,37666,2080,27201,62819,39778,2080,23210,65535,65535,65535,59196,2113,2081,0,21130,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,59196,52825,31727,65535,65535,65535,65535,31727,29346,64964,37698,0,25121,62819,39778,0,65535,65535,65535,65535,65535,4258,4258,4258,31727,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,25388,29414,65166,37832,0,16544,41376,26880,0,33840,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,16872,29414,65166,39912,4160,18656,41408,26880,0,40211,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,29614,29314,64932,60642,56288,58497,64899,39810,0,29614,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,35785,60771,58530,54208,56417,60771,39778,2113,40179,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,48598,44372,25323,25356,40179,44405,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
-
-};
 
 
 //-------GAME BACKGROUND
@@ -601,9 +561,9 @@ const uint16_t TERMINATOR[240][240] = {
 	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
 
 };
-//-----TERMINATOR
 
-//-------GUNS
+
+//-------GUN
 const uint16_t hand[2][127][101] = {
 {
 	{65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535,65535},
@@ -869,164 +829,354 @@ const uint16_t hand[2][127][101] = {
 //-----------
 
 void wait_for_vsync() {
-	volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-	register int status;
-	*pixel_ctrl_ptr = 1;
-	
-	status = *(pixel_ctrl_ptr+3);
-	while ((status & 0x01) != 0) {
-		status = *(pixel_ctrl_ptr + 3);
-	}
-}
+  volatile int * pixel_ctrl_ptr = (int * ) 0xFF203020;
+  register int status;
+  * pixel_ctrl_ptr = 1;
 
+  status = * (pixel_ctrl_ptr + 3);
+  while ((status & 0x01) != 0) {
+    status = * (pixel_ctrl_ptr + 3);
+  }
+}
 
 int abs(int a) {
-	if (a < 0) return -a;
-	return a;
+  if (a < 0) return -a;
+  return a;
 }
 
-void swap (int *a, int *b) {
-	int temp = *a;
-	*a = *b;
-	*b = temp;
+void swap(int * a, int * b) {
+  int temp = * a;
+  * a = * b;
+  * b = temp;
 }
 
 //Each point holds the x and y location of a color to be drawn
 struct point {
-	int xPos;
-	int yPos;
-	int color;
+  int xPos;
+  int yPos;
+  int color;
 };
 
 typedef struct point point;
 
-point playerLoc = {RESOLUTION_X/2, RESOLUTION_Y/2 + 80, 0};
-
+point playerLoc = {
+  RESOLUTION_X / 2,
+  RESOLUTION_Y / 2 + 80,
+  0
+};
 
 struct target {
-	int xPos;
-	int yPos;
-	int xVel;
-	int yVel;
-	int timer;
-	int shot; //1 if shot, 0 if not shot
-	int spawned; //Only draw and register shots when set to 1
-	point image[25];
-	point previous[25];
-	point toDelete[25];
+  int xPos;
+  int yPos;
+  int xVel;
+  int yVel;
+  int timer;
+  int shot; //1 if shot, 0 if not shot
+  point image[25];
+  point previous[25];
+  point toDelete[25];
 
 };
 
 typedef struct target target;
 
-
-
 struct cursor {
-	int xPos;
-	int yPos;
-	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
-	point image[8];
-	point previous[8];
-	point toDelete[8];
+  int xPos;
+  int yPos;
+  int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
+  point image[8];
+  point previous[8];
+  point toDelete[8];
 };
 
-
-
 struct gun {
-	int xPos;
-	int yPos;
-	int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
-	point image[127][101];
-	point previous[127][101];
-	point toDelete[127][101];
+  int xPos;
+  int yPos;
+  int shot; //1 if shot has been fired, 0 otherwise, reset to 0 once shot is registered on/off target
+  point image[127][101];
+  point previous[127][101];
+  point toDelete[127][101];
 };
 
 typedef struct robot {
-	int xPos;
-	int yPos;
-	int xVel;
-	int yVel;
-	int timer;
-	int shot; //1 if shot, 0 if not shot
-	int spawned; //Only draw and register shots when set to 1
-	point image[525];
-	point previous[525];
-	point toDelete[525];
+  int xPos;
+  int yPos;
+  int xVel;
+  int yVel;
+  int timer;
+  int shot; //1 if shot, 0 if not shot
+  point image[525];
+  point previous[525];
+  point toDelete[525];
 
-}robot;	
+}
+robot;
 
 robot ROBOTS[NUM_BOXES];
-void initTarget(target* gameT, int t, robot* gameR);
+void initTarget(target * gameT, int t, robot * gameR);
 target TARGETS[NUM_BOXES];
 
 typedef struct gun gun;
 
-point gunImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
+point gunImage[8] = {
+  {
+    0,
+    2,
+    CURSOR_CLR
+  },
+  {
+    0,
+    1,
+    CURSOR_CLR
+  },
+  {
+    -2,
+    0,
+    CURSOR_CLR
+  },
+  {
+    -1,
+    0,
+    CURSOR_CLR
+  },
+  {
+    1,
+    0,
+    CURSOR_CLR
+  },
+  {
+    2,
+    0,
+    CURSOR_CLR
+  },
+  {
+    0,
+    -1,
+    CURSOR_CLR
+  },
+  {
+    0,
+    -2,
+    CURSOR_CLR
+  }
+};
 
 typedef struct cursor cursor;
 
 void initTargets() {
-	srand(time(0));
-	for (int i = 0; i < level; i++) {
-		
-		
-		initTarget(&TARGETS[i], rand(), &ROBOTS[i]);  
-	}
-	
+  srand(time(0));
+  for (int i = 0; i < level; i++) {
+
+    initTarget( & TARGETS[i], rand(), & ROBOTS[i]);
+  }
+
 }
 
-point cursorImage[8] = {{0, 2, CURSOR_CLR}, {0, 1, CURSOR_CLR}, {-2, 0, CURSOR_CLR}, {-1, 0, CURSOR_CLR}, {1, 0, CURSOR_CLR}, {2, 0, CURSOR_CLR}, {0, -1, CURSOR_CLR}, {0, -2, CURSOR_CLR}};
-
-point targetImage[25] = {
-	{-2, 2, RED}, {-1, 2, RED}, {0, 2, RED}, {1, 2, RED}, {2, 2, RED},	
-	{-2, 1, RED}, {-1, 1, WHITE}, {0, 1, WHITE}, {1, 1, WHITE}, {2, 1, RED},
-	{-2, 0, RED}, {-1, 0, WHITE}, {0, 0, RED}, {1, 0, WHITE}, {2, 0, RED},
-	{-2, -1, RED}, {-1, -1, WHITE}, {0, -1, WHITE}, {1, -1, WHITE}, {2, -1, RED},
-	{-2, -2, RED}, {-1, -2, RED}, {0, -2, RED}, {1, -2, RED}, {2, -2, RED}
-	
+point cursorImage[8] = {
+  {
+    0,
+    2,
+    CURSOR_CLR
+  },
+  {
+    0,
+    1,
+    CURSOR_CLR
+  },
+  {
+    -2,
+    0,
+    CURSOR_CLR
+  },
+  {
+    -1,
+    0,
+    CURSOR_CLR
+  },
+  {
+    1,
+    0,
+    CURSOR_CLR
+  },
+  {
+    2,
+    0,
+    CURSOR_CLR
+  },
+  {
+    0,
+    -1,
+    CURSOR_CLR
+  },
+  {
+    0,
+    -2,
+    CURSOR_CLR
+  }
 };
 
+point targetImage[25] = {
+  {
+    -2, 2, RED
+  },
+  {
+    -1,
+    2,
+    RED
+  },
+  {
+    0,
+    2,
+    RED
+  },
+  {
+    1,
+    2,
+    RED
+  },
+  {
+    2,
+    2,
+    RED
+  },
+  {
+    -2,
+    1,
+    RED
+  },
+  {
+    -1,
+    1,
+    WHITE
+  },
+  {
+    0,
+    1,
+    WHITE
+  },
+  {
+    1,
+    1,
+    WHITE
+  },
+  {
+    2,
+    1,
+    RED
+  },
+  {
+    -2,
+    0,
+    RED
+  },
+  {
+    -1,
+    0,
+    WHITE
+  },
+  {
+    0,
+    0,
+    RED
+  },
+  {
+    1,
+    0,
+    WHITE
+  },
+  {
+    2,
+    0,
+    RED
+  },
+  {
+    -2,
+    -1,
+    RED
+  },
+  {
+    -1,
+    -1,
+    WHITE
+  },
+  {
+    0,
+    -1,
+    WHITE
+  },
+  {
+    1,
+    -1,
+    WHITE
+  },
+  {
+    2,
+    -1,
+    RED
+  },
+  {
+    -2,
+    -2,
+    RED
+  },
+  {
+    -1,
+    -2,
+    RED
+  },
+  {
+    0,
+    -2,
+    RED
+  },
+  {
+    1,
+    -2,
+    RED
+  },
+  {
+    2,
+    -2,
+    RED
+  }
 
-void initCursor(cursor* gameC) {
-	//Initialize cursor
-	gameC->xPos = RESOLUTION_X/2;
-	gameC->yPos = RESOLUTION_Y/2;
-	for (int i = 0; i < 8; i++) {
-		gameC->image[i] = cursorImage[i];
-		gameC->previous[i] = cursorImage[i];
-		gameC->toDelete[i] = cursorImage[i];
-	}
-	
+};
+
+void initCursor(cursor * gameC) {
+  //Initialize cursor
+  gameC -> xPos = RESOLUTION_X / 2;
+  gameC -> yPos = RESOLUTION_Y / 2;
+  for (int i = 0; i < 8; i++) {
+    gameC -> image[i] = cursorImage[i];
+    gameC -> previous[i] = cursorImage[i];
+    gameC -> toDelete[i] = cursorImage[i];
+  }
+
 }
 
+void initTarget(target * gameT, int t, robot * gameR) {
+  //Initialize cursor
 
+  gameT -> xPos = gameR -> xPos; //t%RESOLUTION_X;
+  gameT -> yPos = gameR -> yPos - 80; //RESOLUTION_Y/2;
+  gameT -> xVel = -1; //(t%2)*2 - 1;
+  gameT -> yVel = 0; //(t%2)*2 - 1;
+  gameT -> shot = 0;
+  gameT -> timer = t % 81 + 80;
+  for (int i = 0; i < 25; i++) {
+    gameT -> image[i] = targetImage[i];
+    gameT -> previous[i] = targetImage[i];
+    gameT -> toDelete[i] = targetImage[i];
+  }
 
-
-void initTarget(target* gameT, int t, robot *gameR) {
-	//Initialize cursor
-	
-	gameT->xPos = gameR->xPos;//t%RESOLUTION_X;
-	gameT->yPos = gameR->yPos-80;//RESOLUTION_Y/2;
-	gameT->xVel = -1;//(t%2)*2 - 1;
-	gameT->yVel = 0;//(t%2)*2 - 1;
-	gameT->shot = 0;
-	gameT->timer = t%81 + 80;
-	for (int i = 0; i < 25; i++) {
-		gameT->image[i] = targetImage[i];
-		gameT->previous[i] = targetImage[i];
-		gameT->toDelete[i] = targetImage[i];
-	}
-	
 }
 
-void initGun(gun* gameG) {
-	//Initialize cursor
-	gameG->xPos = RESOLUTION_X/2;
-	gameG->yPos = RESOLUTION_Y/2+60;
-	
-	
-}
+void initGun(gun * gameG) {
+  //Initialize cursor
+  gameG -> xPos = RESOLUTION_X / 2;
+  gameG -> yPos = RESOLUTION_Y / 2 + 60;
 
+}
 
 /*******************************************************************/
 /********************Beginnig of Robot Code************************/
@@ -1034,1096 +1184,1054 @@ void initGun(gun* gameG) {
 
 point robotImage[525];
 
+//this function fills the robotImage array at the location defined by (x,y) point
+void robot_initHelper(int x, int y) {
+  //colummn x-10 and x+10
+  for (int i = 0; i < 25; i++) {
+    if (i == 14 || i == 15 || i == 16) {
+      robotImage[i].color = RED;
+      robotImage[i + 500].color = RED;
+    } else {
+      robotImage[i].color = 0x0000;
+      robotImage[i + 500].color = 0x0000;
+    } //->set to background color
+    robotImage[i].xPos = x - 10;
+    robotImage[i].yPos = y - 12 + i;
 
-	
+    robotImage[i + 500].xPos = x + 10;
+    robotImage[i + 500].yPos = y - 12 + i;
+  }
+  //colummn x-9 and x+9 and x-8 and x+8
+  for (int i = 0; i < 25; i++) {
+    if (i == 8 || i == 9 || i == 10) {
+      robotImage[i + 25].color = ROBO_BLUE;
+      robotImage[i + 475].color = ROBO_BLUE;
+      robotImage[i + 50].color = ROBO_BLUE;
+      robotImage[i + 450].color = ROBO_BLUE;
+    } else if (i == 11 || i == 12 || i == 13) {
+      robotImage[i + 25].color = GREY;
+      robotImage[i + 475].color = GREY;
+      robotImage[i + 50].color = GREY;
+      robotImage[i + 450].color = GREY;
+    } else if (i == 14 || i == 15) {
+      robotImage[i + 25].color = RED;
+      robotImage[i + 475].color = RED;
+      robotImage[i + 50].color = RED;
+      robotImage[i + 450].color = RED;
+    } else {
+      robotImage[i + 25].color = 0x0000;
+      robotImage[i + 475].color = 0x0000;
+      robotImage[i + 50].color = 0x0000;
+      robotImage[i + 450].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 25].xPos = x - 9;
+    robotImage[i + 25].yPos = y - 12 + i;
 
+    robotImage[i + 475].xPos = x + 9;
+    robotImage[i + 475].yPos = y - 12 + i;
+    //for column x-8 and x+8
+    robotImage[i + 50].xPos = x - 8;
+    robotImage[i + 50].yPos = y - 12 + i;
 
+    robotImage[i + 450].xPos = x + 8;
+    robotImage[i + 450].yPos = y - 12 + i;
+  }
+  //column x-7 and x+7
+  for (int i = 0; i < 25; i++) {
+    if (i == 8 || i == 9 || i == 10) {
+      robotImage[i + 75].color = ROBO_BLUE;
+      robotImage[i + 425].color = ROBO_BLUE;
+    } else if (i == 14 || i == 15 || i == 16) {
+      robotImage[i + 75].color = RED;
+      robotImage[i + 425].color = RED;
+    } else {
+      robotImage[i + 75].color = 0x0000;
+      robotImage[i + 425].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 75].xPos = x - 7;
+    robotImage[i + 75].yPos = y - 12 + i;
 
+    robotImage[i + 425].xPos = x + 7;
+    robotImage[i + 425].yPos = y - 12 + i;
+  }
+  //column x-6 and x+6
+  for (int i = 0; i < 25; i++) {
+    if (i > 5 && i < 18) {
+      robotImage[i + 100].color = GREY;
+      robotImage[i + 400].color = GREY;
+    } else {
+      robotImage[i + 100].color = 0x0000;
+      robotImage[i + 400].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 100].xPos = x - 6;
+    robotImage[i + 100].yPos = y - 12 + i;
 
-void initRobot(robot* gameR, int l, int t) {
-	//Initialize Robot
-	
-	gameR->xPos = 320 + l*50;//t%RESOLUTION_X;
-	gameR->yPos = t%60 + 160;//t%RESOLUTION_Y;
-	//robot_initHelper(gameR->xPos,gameR->yPos);
-	robot_initHelper(0,-80);
-	gameR->xVel = -level/2 - 1;//(t%2)*2 - 1;
-	gameR->yVel = 0;//(t%2)*2 - 1;
-	gameR->shot = 0;
-	gameR->timer = t%81 + 300;
-	for (int i = 0; i < 525; i++) {
-		gameR->image[i] = robotImage[i];
-		gameR->previous[i] = robotImage[i];
-		gameR->toDelete[i] = robotImage[i];
-	}
+    robotImage[i + 400].xPos = x + 6;
+    robotImage[i + 400].yPos = y - 12 + i;
+  }
+  //column x-5 and x-5
+  for (int i = 0; i < 25; i++) {
+    if (i > 5 && i < 18) {
+      robotImage[i + 125].color = GREY;
+      robotImage[i + 375].color = GREY;
+    } else if (i == 23 || i == 24) {
+      robotImage[i + 125].color = RED;
+      robotImage[i + 375].color = RED;
+    } else {
+      robotImage[i + 125].color = 0x0000;
+      robotImage[i + 375].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 125].xPos = x - 5;
+    robotImage[i + 125].yPos = y - 12 + i;
+
+    robotImage[i + 375].xPos = x + 5;
+    robotImage[i + 375].yPos = y - 12 + i;
+  }
+  //column x-4 and x+4
+  for (int i = 0; i < 25; i++) {
+    if (i > 5 && i < 23) {
+      robotImage[i + 150].color = GREY;
+      robotImage[i + 350].color = GREY;
+    } else if (i == 2 || i == 3 || i == 23 || i == 24) {
+      robotImage[i + 150].color = RED;
+      robotImage[i + 350].color = RED;
+    } else {
+      robotImage[i + 125].color = 0x0000;
+      robotImage[i + 350].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 150].xPos = x - 4;
+    robotImage[i + 150].yPos = y - 12 + i;
+
+    robotImage[i + 350].xPos = x + 4;
+    robotImage[i + 350].yPos = y - 12 + i;
+  }
+  //column x-3 and x+3
+  for (int i = 0; i < 25; i++) {
+    if (i == 23 || i == 24) {
+      robotImage[i + 175].color = RED;
+      robotImage[i + 325].color = RED;
+    } else {
+      robotImage[i + 175].color = GREY;
+      robotImage[i + 325].color = GREY;
+    }
+    robotImage[i + 175].xPos = x - 3;
+    robotImage[i + 175].yPos = y - 12 + i;
+
+    robotImage[i + 325].xPos = x + 3;
+    robotImage[i + 325].yPos = y - 12 + i;
+  }
+  //column x-2 and x+2
+  for (int i = 0; i < 25; i++) {
+    if (i == 23 || i == 24) {
+      robotImage[i + 200].color = RED;
+      robotImage[i + 300].color = RED;
+    } else if (i == 1) {
+      robotImage[i + 200].color = WHITE;
+      robotImage[i + 300].color = 0x0000;
+    } else if (i == 2) {
+      robotImage[i + 200].color = 0x0000;
+      robotImage[i + 300].color = 0x0000;
+    } else {
+      robotImage[i + 200].color = GREY;
+      robotImage[i + 300].color = GREY;
+    }
+    robotImage[i + 200].xPos = x - 2;
+    robotImage[i + 200].yPos = y - 12 + i;
+
+    robotImage[i + 300].xPos = x + 2;
+    robotImage[i + 300].yPos = y - 12 + i;
+  }
+  //column x-1 and x+1
+  for (int i = 0; i < 25; i++) {
+    if (i == 0 || i == 3 || (i > 4 && i < 18)) {
+      robotImage[i + 225].color = GREY;
+      robotImage[i + 275].color = GREY;
+    } else if (i == 4) {
+      robotImage[i + 225].color = WHITE;
+      robotImage[i + 275].color = WHITE;
+    } else if (i == 1) {
+      robotImage[i + 225].color = 0x0000;
+      robotImage[i + 275].color = WHITE;
+    } else {
+      robotImage[i + 225].color = 0x0000;
+      robotImage[i + 275].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 225].xPos = x - 1;
+    robotImage[i + 225].yPos = y - 12 + i;
+
+    robotImage[i + 275].xPos = x + 1;
+    robotImage[i + 275].yPos = y - 12 + i;
+  }
+  //column x
+  for (int i = 0; i < 25; i++) {
+    if (i < 4 || (i > 4 && i < 18)) {
+      robotImage[i + 250].color = GREY;
+    } else if (i == 4) {
+      robotImage[i + 250].color = WHITE;
+    } else {
+      robotImage[i + 250].color = 0x0000;
+    } //->set to background color
+    robotImage[i + 250].xPos = x;
+    robotImage[i + 250].yPos = y - 12 + i;
+  }
 }
 
+void initRobot(robot * gameR, int l, int t) {
+  //Initialize Robot
+
+  gameR -> xPos = 320 + l * 50; //t%RESOLUTION_X;
+  gameR -> yPos = t % 60 + 160; //t%RESOLUTION_Y;
+  //robot_initHelper(gameR->xPos,gameR->yPos);
+  robot_initHelper(0, -80);
+  gameR -> xVel = -level / 2 - 1; //(t%2)*2 - 1;
+  gameR -> yVel = 0; //(t%2)*2 - 1;
+  gameR -> shot = 0;
+  gameR -> timer = t % 81 + 300;
+  for (int i = 0; i < 525; i++) {
+    gameR -> image[i] = robotImage[i];
+    gameR -> previous[i] = robotImage[i];
+    gameR -> toDelete[i] = robotImage[i];
+  }
+}
 
 void initRobots() {
-	srand(time(0));
-	for (int l = 0; l < level; l++) {
-		initRobot(&ROBOTS[l], l, rand());
-	
-	}
+  srand(time(0));
+  for (int l = 0; l < level; l++) {
+    initRobot( & ROBOTS[l], l, rand());
+
+  }
 }
 
-//this function fills the robotImage array at the location defined by (x,y) point
-void robot_initHelper(int x,int y){
-	//colummn x-10 and x+10
-	for(int i=0;i<25;i++){
-		if(i==14||i==15||i==16){robotImage[i].color = RED;robotImage[i+500].color = RED;}
-		else{robotImage[i].color = 0x0000;robotImage[i+500].color = 0x0000;}//->set to background color
-		robotImage[i].xPos = x-10;
-		robotImage[i].yPos = y-12+i;
+void renderRobot(robot * gameC, int valid) {
+  int n = sizeof(gameC -> toDelete) / sizeof(gameC -> toDelete[0]);
+  int onScreen = gameC -> xPos < 340 && gameC -> xPos > -20;
+  //Delete toDel and shift previous into del
+  //Shidt current into prev
+  for (int i = 0; i < n; i++) {
+    int deleteValid = gameC -> toDelete[i].xPos <= 320 && gameC -> toDelete[i].xPos >= 0 && gameC -> toDelete[i].yPos <= 240 && gameC -> toDelete[i].yPos >= 0;
+    if (valid && deleteValid) plot_pixel(gameC -> toDelete[i].xPos, gameC -> toDelete[i].yPos, gameC -> toDelete[i].color);
+    //plot_pixel(0, 0, RED);
+    gameC -> toDelete[i] = gameC -> previous[i];
+    gameC -> previous[i].xPos = gameC -> xPos + gameC -> image[i].xPos;
+    gameC -> previous[i].yPos = gameC -> yPos + gameC -> image[i].yPos;
+    gameC -> previous[i].color = bg[gameC -> yPos + gameC -> image[i].yPos][gameC -> xPos + gameC -> image[i].xPos]; //*(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+    flushPS2();
+  }
 
-		robotImage[i+500].xPos = x+10;
-		robotImage[i+500].yPos = y-12+i;
-	}
-	//colummn x-9 and x+9 and x-8 and x+8
-	for(int i=0;i<25;i++){
-		if(i==8||i==9||i==10){robotImage[i+25].color = ROBO_BLUE;robotImage[i+475].color = ROBO_BLUE;robotImage[i+50].color = ROBO_BLUE;robotImage[i+450].color = ROBO_BLUE;}
-		else if(i==11||i==12||i==13){robotImage[i+25].color = GREY;robotImage[i+475].color = GREY;robotImage[i+50].color = GREY;robotImage[i+450].color = GREY;}
-		else if(i==14||i==15){robotImage[i+25].color = RED;robotImage[i+475].color = RED;robotImage[i+50].color = RED;robotImage[i+450].color = RED;}
-		else{robotImage[i+25].color = 0x0000;robotImage[i+475].color = 0x0000;robotImage[i+50].color = 0x0000;robotImage[i+450].color = 0x0000;}//->set to background color
-		robotImage[i+25].xPos = x-9;
-		robotImage[i+25].yPos = y-12+i;
+  //Draw current
 
-		robotImage[i+475].xPos = x+9;
-		robotImage[i+475].yPos = y-12+i;
-		//for column x-8 and x+8
-		robotImage[i+50].xPos = x-8;
-		robotImage[i+50].yPos = y-12+i;
-
-		robotImage[i+450].xPos = x+8;
-		robotImage[i+450].yPos = y-12+i;
-	}
-	//column x-7 and x+7
-	for(int i=0;i<25;i++){
-		if(i==8||i==9||i==10){robotImage[i+75].color = ROBO_BLUE;robotImage[i+425].color = ROBO_BLUE;}
-		else if(i==14||i==15||i==16){robotImage[i+75].color = RED;robotImage[i+425].color = RED;}
-		else{robotImage[i+75].color = 0x0000;robotImage[i+425].color = 0x0000;}//->set to background color
-		robotImage[i+75].xPos = x-7;
-		robotImage[i+75].yPos = y-12+i;
-
-		robotImage[i+425].xPos = x+7;
-		robotImage[i+425].yPos = y-12+i;
-	}
-	//column x-6 and x+6
-	for(int i=0;i<25;i++){
-		if(i>5&&i<18){robotImage[i+100].color = GREY;robotImage[i+400].color = GREY;}
-		else{robotImage[i+100].color = 0x0000;robotImage[i+400].color = 0x0000;}//->set to background color
-		robotImage[i+100].xPos = x-6;
-		robotImage[i+100].yPos = y-12+i;
-
-		robotImage[i+400].xPos = x+6;
-		robotImage[i+400].yPos = y-12+i;
-	}
-	//column x-5 and x-5
-	for(int i=0;i<25;i++){
-		if(i>5&&i<18){robotImage[i+125].color = GREY;robotImage[i+375].color = GREY;}
-		else if(i==23||i==24){robotImage[i+125].color = RED;robotImage[i+375].color = RED;}
-		else{robotImage[i+125].color = 0x0000;robotImage[i+375].color = 0x0000;}//->set to background color
-		robotImage[i+125].xPos = x-5;
-		robotImage[i+125].yPos = y-12+i;
-
-		robotImage[i+375].xPos = x+5;
-		robotImage[i+375].yPos = y-12+i;
-	}
-	//column x-4 and x+4
-	for(int i=0;i<25;i++){
-		if(i>5&&i<23){robotImage[i+150].color = GREY;robotImage[i+350].color = GREY;}
-		else if(i==2||i==3||i==23||i==24){robotImage[i+150].color = RED;robotImage[i+350].color = RED;}
-		else{robotImage[i+125].color = 0x0000;robotImage[i+350].color = 0x0000;}//->set to background color
-		robotImage[i+150].xPos = x-4;
-		robotImage[i+150].yPos = y-12+i;
-
-		robotImage[i+350].xPos = x+4;
-		robotImage[i+350].yPos = y-12+i;
-	}
-	//column x-3 and x+3
-	for(int i=0;i<25;i++){
-		if(i==23||i==24){robotImage[i+175].color = RED;robotImage[i+325].color = RED;}
-		else {robotImage[i+175].color = GREY;robotImage[i+325].color = GREY;}
-		robotImage[i+175].xPos = x-3;
-		robotImage[i+175].yPos = y-12+i;
-
-		robotImage[i+325].xPos = x+3;
-		robotImage[i+325].yPos = y-12+i;
-	}
-	//column x-2 and x+2
-	for(int i=0;i<25;i++){
-		if(i==23||i==24){robotImage[i+200].color = RED;robotImage[i+300].color = RED;}
-		else if(i==1){robotImage[i+200].color = WHITE;robotImage[i+300].color = 0x0000;}
-		else if(i==2){robotImage[i+200].color = 0x0000;robotImage[i+300].color = 0x0000;}
-		else {robotImage[i+200].color = GREY;robotImage[i+300].color = GREY;}
-		robotImage[i+200].xPos = x-2;
-		robotImage[i+200].yPos = y-12+i;
-
-		robotImage[i+300].xPos = x+2;
-		robotImage[i+300].yPos = y-12+i;
-	}
-	//column x-1 and x+1
-	for(int i=0;i<25;i++){
-		if(i==0||i==3|| i>4&&i<18){robotImage[i+225].color = GREY;robotImage[i+275].color = GREY;}
-		else if(i==4){robotImage[i+225].color = WHITE;robotImage[i+275].color = WHITE;}
-		else if(i==1){robotImage[i+225].color = 0x0000;robotImage[i+275].color = WHITE;}
-		else{robotImage[i+225].color = 0x0000;robotImage[i+275].color = 0x0000;}//->set to background color
-		robotImage[i+225].xPos = x-1;
-		robotImage[i+225].yPos = y-12+i;
-		
-		robotImage[i+275].xPos = x+1;
-		robotImage[i+275].yPos = y-12+i;
-	}
-	//column x
-	for(int i=0;i<25;i++){
-		if(i<4 || i>4&&i<18){robotImage[i+250].color = GREY;}
-		else if(i==4){robotImage[i+250].color = WHITE;}
-		else{robotImage[i+250].color = 0x0000;}//->set to background color
-		robotImage[i+250].xPos = x;
-		robotImage[i+250].yPos = y-12+i;
-	}
+  for (int i = 0; i < n && !gameC -> shot && onScreen; i++) {
+    int x = gameC -> xPos + gameC -> image[i].xPos;
+    int y = gameC -> yPos + gameC -> image[i].yPos;
+    if (gameC -> image[i].color) plot_pixel(x, y, gameC -> image[i].color);
+    flushPS2();
+  }
 }
 
-void print_robot(){
-	for(int i=0;i<525;i++){
-		if (robotImage[i].color) plot_pixel(robotImage[i].xPos,robotImage[i].yPos,robotImage[i].color);
-	}	
+void renderTarget(target * gameT, int valid) {
+  /**Similar comment as above, just change the names so that it reflects this.**/
+  int n = sizeof(gameT -> toDelete) / sizeof(gameT -> toDelete[0]);
+  //Delete toDel and shift previous into del
+  //Shidt current into prev
+  for (int i = 0; i < n && 0; i++) {
+    int deleteValid = gameT -> toDelete[i].xPos <= 320 && gameT -> toDelete[i].xPos >= 0 && gameT -> toDelete[i].yPos <= 240 && gameT -> toDelete[i].yPos >= 0;
+    if (valid && deleteValid) plot_pixel(gameT -> toDelete[i].xPos, gameT -> toDelete[i].yPos, gameT -> toDelete[i].color);
+    //plot_pixel(0, 0, RED);
+    gameT -> toDelete[i] = gameT -> previous[i];
+    gameT -> previous[i].xPos = gameT -> xPos + gameT -> image[i].xPos;
+    gameT -> previous[i].yPos = gameT -> yPos + gameT -> image[i].yPos;
+    gameT -> previous[i].color = bg[gameT -> yPos + gameT -> image[i].yPos][gameT -> xPos + gameT -> image[i].xPos];
+    flushPS2();
+  }
+
+  //Draw current
+  for (int i = 0; i < n && !gameT -> shot; i++) {
+    int x = gameT -> xPos + gameT -> image[i].xPos;
+    int y = gameT -> yPos + gameT -> image[i].yPos;
+    int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
+    if (drawValid) plot_pixel(x, y, gameT -> image[i].color);
+    flushPS2();
+  }
 }
-
-void renderRobot(robot* gameC, int valid) {
-	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
-	int onScreen = gameC->xPos < 340 && gameC->xPos > -20;
-	//Delete toDel and shift previous into del
-	//Shidt current into prev
-	for (int i = 0; i < n; i++){
-		int deleteValid = gameC->toDelete[i].xPos <= 320 && gameC->toDelete[i].xPos >= 0 && gameC->toDelete[i].yPos <= 240 && gameC->toDelete[i].yPos >= 0;
-		if (valid && deleteValid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, gameC->toDelete[i].color);
-		//plot_pixel(0, 0, RED);
-		gameC->toDelete[i] = gameC->previous[i];
-		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
-		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
-		gameC->previous[i].color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];//*(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
-		flushPS2();
-	}
-
-	//Draw current
-	
-	for (int i = 0; i < n && !gameC->shot && onScreen; i++) {
-		int x = gameC->xPos + gameC->image[i].xPos;
-		int y = gameC->yPos + gameC->image[i].yPos;
-		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
-		if (gameC->image[i].color)plot_pixel(x, y, gameC->image[i].color);
-		flushPS2();
-	}
-}
-
-
-void renderTarget(target* gameT, int valid) {/**Similar comment as above, just change the names so that it reflects this.**/
-	int n = sizeof(gameT->toDelete)/sizeof(gameT->toDelete[0]);
-	//Delete toDel and shift previous into del
-	//Shidt current into prev
-	for (int i = 0; i < n && 0; i++){
-		int deleteValid = gameT->toDelete[i].xPos <= 320 && gameT->toDelete[i].xPos >= 0 && gameT->toDelete[i].yPos <= 240 && gameT->toDelete[i].yPos >= 0;
-		if (valid && deleteValid) plot_pixel(gameT->toDelete[i].xPos, gameT->toDelete[i].yPos, gameT->toDelete[i].color);
-		//plot_pixel(0, 0, RED);
-		gameT->toDelete[i] = gameT->previous[i];
-		gameT->previous[i].xPos = gameT->xPos + gameT->image[i].xPos;
-		gameT->previous[i].yPos = gameT->yPos + gameT->image[i].yPos;
-		gameT->previous[i].color = bg[gameT->yPos + gameT->image[i].yPos][gameT->xPos + gameT->image[i].xPos];
-		flushPS2();
-	}
-
-	//Draw current
-	for (int i = 0; i < n && !gameT->shot; i++) {
-		int x = gameT->xPos + gameT->image[i].xPos;
-		int y = gameT->yPos + gameT->image[i].yPos;
-		int drawValid = x <= 320 && x >= 0 && y <= 240 && y >= 0;
-		if (drawValid) plot_pixel(x, y, gameT->image[i].color);
-		flushPS2();
-	}
-}
-
-
-
-
-
 
 void flushPS2() {
-	volatile int* PS2_ptr = (int*)PS2_BASE;
-	//*(PS2_ptr) = 0xFF;
-	int PS2_data =*(PS2_ptr);
-	int byte3 = PS2_data & 0xFF;
+  volatile int * PS2_ptr = (int * ) PS2_BASE;
+  //*(PS2_ptr) = 0xFF;
+  int PS2_data = * (PS2_ptr);
+  int byte3 = PS2_data & 0xFF;
 }
 
-int checkShot(cursor *check) {
-	
-	for (int i = 0; i < NUM_BOXES; i++) {
-		int deltaX = abs((*check).xPos - TARGETS[i].xPos);
-		int deltaY = abs(check->yPos - TARGETS[i].yPos);
-		if (deltaY < SHOT_RANGE && deltaX < SHOT_RANGE) {
-			score++;
-			//check->shot = 1;
-			TARGETS[i].shot = 1;
-			TARGETS[i].xPos = -100;
-			TARGETS[i].yPos = -100;
-			TARGETS[i].xVel = 0;
-			
-			ROBOTS[i].shot = 1;
-			
-			ROBOTS[i].xVel = 0;
-			ROBOTS[i].xPos = 400;
-			return 1;
-		} 
-	}
-	//strike++;
-	return 0;
+int checkShot(cursor * check) {
+
+  for (int i = 0; i < NUM_BOXES; i++) {
+    int deltaX = abs(( * check).xPos - TARGETS[i].xPos);
+    int deltaY = abs(check -> yPos - TARGETS[i].yPos);
+    if (deltaY < SHOT_RANGE && deltaX < SHOT_RANGE) {
+      score++;
+      TARGETS[i].shot = 1;
+      TARGETS[i].xPos = -100;
+      TARGETS[i].yPos = -100;
+      TARGETS[i].xVel = 0;
+
+      ROBOTS[i].shot = 1;
+
+      ROBOTS[i].xVel = 0;
+      ROBOTS[i].xPos = 400;
+      return 1;
+    }
+  }
+  return 0;
 }
 
-void renderCursor(cursor* gameC, int valid, int f) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
-	int n = sizeof(gameC->toDelete)/sizeof(gameC->toDelete[0]);
-	//Delete toDel and shift previous into del
-	//Shidt current into prev
-	for (int i = 0; i < n; i++){
-		if (valid) plot_pixel(gameC->toDelete[i].xPos, gameC->toDelete[i].yPos, gameC->toDelete[i].color);
-		//plot_pixel(0, 0, RED);
-		gameC->toDelete[i] = gameC->previous[i];
-		gameC->previous[i].xPos = gameC->xPos + gameC->image[i].xPos;
-		gameC->previous[i].yPos = gameC->yPos + gameC->image[i].yPos;
-		int color;// = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
-		color = bg[gameC->yPos + gameC->image[i].yPos][gameC->xPos + gameC->image[i].xPos];
-		gameC->previous[i].color = color; 
-		flushPS2();
-	}
+void renderCursor(cursor * gameC, int valid, int f) {
+  /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
+  int n = sizeof(gameC -> toDelete) / sizeof(gameC -> toDelete[0]);
+  //Delete toDel and shift previous into del
+  //Shidt current into prev
+  for (int i = 0; i < n; i++) {
+    if (valid) plot_pixel(gameC -> toDelete[i].xPos, gameC -> toDelete[i].yPos, gameC -> toDelete[i].color);
+    //plot_pixel(0, 0, RED);
+    gameC -> toDelete[i] = gameC -> previous[i];
+    gameC -> previous[i].xPos = gameC -> xPos + gameC -> image[i].xPos;
+    gameC -> previous[i].yPos = gameC -> yPos + gameC -> image[i].yPos;
+    int color; // = *(short int *)(pixel_buffer_start + (gameC->yPos + gameC->image[i].yPos << 10) + (gameC->xPos + gameC->image[i].xPos << 1));
+    color = bg[gameC -> yPos + gameC -> image[i].yPos][gameC -> xPos + gameC -> image[i].xPos];
+    gameC -> previous[i].color = color;
+    flushPS2();
+  }
 
-	//Draw current
-	int color;
-	
-	for (int i = 0; i < n; i++) {
-		if (f) {
-		color = RED;
-	} else {
-		color = gameC->image[i].color;
-	}
-		plot_pixel(gameC->xPos + gameC->image[i].xPos, gameC->yPos + gameC->image[i].yPos, color);
-		flushPS2();
-	}
+  //Draw current
+  int color;
+
+  for (int i = 0; i < n; i++) {
+    if (f) {
+      color = RED;
+    } else {
+      color = gameC -> image[i].color;
+    }
+    plot_pixel(gameC -> xPos + gameC -> image[i].xPos, gameC -> yPos + gameC -> image[i].yPos, color);
+    flushPS2();
+  }
 }
-
-
 
 void drawGun(int fire, int delete) {
-	int color;
-	for (int y = 0; y < 127; y++) {
-		for (int x = 0; x < 101; x++) {
-			if (delete) {
-				color = bg[x+110][y+113];	
-			} else {
-				color = hand[fire][y][x]; 
-			}
-			if (hand[fire][y][x] != 65535) plot_pixel(x+110, y+113, color);
-			flushPS2();
-		}
-	}
+  int color;
+  for (int y = 0; y < 127; y++) {
+    for (int x = 0; x < 101; x++) {
+      if (delete) {
+        color = bg[x + 110][y + 113];
+      } else {
+        color = hand[fire][y][x];
+      }
+      if (hand[fire][y][x] != 65535) plot_pixel(x + 110, y + 113, color);
+      flushPS2();
+    }
+  }
 }
 
+void renderGun(int valid, int flash) {
+  /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
+  if (!valid) return;
+  if (valid <= 3) {
+    drawGun(0, 0);
+    return;
+  }
 
-void renderGun(int valid, int flash) { /**Rendering is for graphics, this fucntion take user input to calculate position to be rendered**/
-	if (!valid) return;
-	if (valid <= 3) {
-		drawGun(0, 0);
-		return;
-	}
-	/*if (flash) {
-		drawGun(0, 1);
-		drawGun(1, 0);
-		for (int w = 0; w <8; w++) {
-			wait_for_vsync();
-			flushPS2();
-		}
-		drawGun(1,1);
-		drawGun(0,0);
-	}*/
-	
-	
 }
-
-
-
-
-
-
-
-
 
 void draw_line(int x1, int y1, int x2, int y2, short int color, int erase) {
-	int is_steep;// = abs(y2 - y1) > abs(x2 - x1)? 1: 0;
-	if (abs(y2 - y1) > abs(x2 - x1)) {
-		is_steep = 1;
-	} else {
-		is_steep = 0;
-	}
-	if (is_steep) {
-		swap(&x1, &y1);
-		swap(&x2, &y2);
-	}
-	if (x1 > x2) {
-		swap(&x1, &x2);
-		swap(&y1, &y2);
-		
-	}
-	int deltax = x2 - x1;
-	int deltay = abs(y2 - y1);
-	int error = -(deltax / 2);
-	int y = y1;
-	int y_step;// = y1 < y2 ? 1 : -1;
-	if (y1 < y2) {
-		y_step = 1;
-	} else {
-		y_step = -1;
-	}
-	
-	for (int i = x1; i < x2; i++) {
-		if (is_steep) {
-			if(!erase){
-				plot_pixel(y, i, color);
-			}
-			else {
-				plot_pixel(y, i, bg[i][y]);
-			}
-		} else {
-			if(!erase)
-			{
-				plot_pixel(i, y, color);
-			} else {
-				plot_pixel(i, y, bg[y][i]);
-			}
-		}
-		error = error + deltay;
-		if (error >= 0) {
-			y += y_step;
-			error = error - deltax;
-		}
-	}
+  int is_steep; // = abs(y2 - y1) > abs(x2 - x1)? 1: 0;
+  if (abs(y2 - y1) > abs(x2 - x1)) {
+    is_steep = 1;
+  } else {
+    is_steep = 0;
+  }
+  if (is_steep) {
+    swap( & x1, & y1);
+    swap( & x2, & y2);
+  }
+  if (x1 > x2) {
+    swap( & x1, & x2);
+    swap( & y1, & y2);
+
+  }
+  int deltax = x2 - x1;
+  int deltay = abs(y2 - y1);
+  int error = -(deltax / 2);
+  int y = y1;
+  int y_step; // = y1 < y2 ? 1 : -1;
+  if (y1 < y2) {
+    y_step = 1;
+  } else {
+    y_step = -1;
+  }
+
+  for (int i = x1; i < x2; i++) {
+    if (is_steep) {
+      if (!erase) {
+        plot_pixel(y, i, color);
+      } else {
+        plot_pixel(y, i, bg[i][y]);
+      }
+    } else {
+      if (!erase) {
+        plot_pixel(i, y, color);
+      } else {
+        plot_pixel(i, y, bg[y][i]);
+      }
+    }
+    error = error + deltay;
+    if (error >= 0) {
+      y += y_step;
+      error = error - deltax;
+    }
+  }
 }
 
 void clear_screen(int color) {
-	for (int x = 0; x < 320; x++) {
-		for (int y = 0; y < 240; y++) {
-			*(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = color;
-		}
-	}
+  for (int x = 0; x < 320; x++) {
+    for (int y = 0; y < 240; y++) {
+      *(short int * )(pixel_buffer_start + (y << 10) + (x << 1)) = color;
+    }
+  }
 }
 
-
-
-void plot_pixel(int x, int y, short int line_color)
-{
-    *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
+void plot_pixel(int x, int y, short int line_color) {
+  *(short int * )(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
 
-void drawBox (int x, int y, int w, int h, int color) {
-	for (int i = 0; i < w; i++) {
-		for (int j = 0; j < h; j++) {
-			if (x+i < RESOLUTION_X && y+j < RESOLUTION_Y)plot_pixel(x+i, y+j, color);
-		}
-	}
+void drawBox(int x, int y, int w, int h, int color) {
+  for (int i = 0; i < w; i++) {
+    for (int j = 0; j < h; j++) {
+      if (x + i < RESOLUTION_X && y + j < RESOLUTION_Y) plot_pixel(x + i, y + j, color);
+    }
+  }
 }
 
-void draw_text(int x,int y,char* text_ptr){
-	int offset;
-	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
-	offset = (y << 7) + x;
-	while(*(text_ptr)) {
-		*(character_buffer + offset) =*(text_ptr);
-		++text_ptr;
-		++offset;
-	}
+void draw_text(int x, int y, char * text_ptr) {
+  int offset;
+  volatile char * character_buffer = (char * ) FPGA_CHAR_BASE;
+  offset = (y << 7) + x;
+  while ( * (text_ptr)) {
+    *(character_buffer + offset) = * (text_ptr);
+    ++text_ptr;
+    ++offset;
+  }
 }
 
 void drawTerm() {
-	for (int y = 0; y < 240; y++) {
-		for (int x = 0; x < 240; x++) {
-			if (65535 - TERMINATOR[y][x] > 8000)plot_pixel(x+120, y, TERMINATOR[y][x]);
-		}
-	}
+  for (int y = 0; y < 240; y++) {
+    for (int x = 0; x < 240; x++) {
+      if (65535 - TERMINATOR[y][x] > 8000) plot_pixel(x + 120, y, TERMINATOR[y][x]);
+    }
+  }
 }
 
 void drawBg() {
-	for (int y = 0; y < 240; y++) {
-		for (int x = 0; x < 320; x++) {
-			plot_pixel(x, y, bg[y][x]);
-		}
-	}
+  for (int y = 0; y < 240; y++) {
+    for (int x = 0; x < 320; x++) {
+      plot_pixel(x, y, bg[y][x]);
+    }
+  }
 }
-
-
-
-
-
-
-
-
 
 //------------LETTERS
-void letter_E(int x,int y){
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i < 3 || i > 26 || i>6 && i<9){
-				plot_pixel(x+j,y+i,0xffff);
-			}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-	}
+void letter_E(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i < 3 || i > 26 || (i > 6 && i < 9)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+  }
 }
 
-void letter_V(int x,int y){
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i==26){plot_pixel(x+j,y+i,0xffff);}
-			if(i==27 && (j!=0 && j!=9) ){plot_pixel(x+j,y+i,0xffff);}
-			if(i==28 && (j!=0 && j!=9 && j!=1 && j!=8) ){plot_pixel(x+j,y+i,0xffff);}
-			if(i==29 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7) ){plot_pixel(x+j,y+i,0xffff);}
-			//if(i==29 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7 && j!=3 && j!=6) ){plot_pixel(x+j,y+i,0xffff);}
-		}
-		if(i<26){
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-		}
-	}
+void letter_V(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i == 26) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 27 && (j != 0 && j != 9)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 28 && (j != 0 && j != 9 && j != 1 && j != 8)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 29 && (j != 0 && j != 9 && j != 1 && j != 8 && j != 2 && j != 7)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      //if(i==29 && (j!=0 && j!=9 && j!=1 && j!=8 && j!=2 && j!=7 && j!=3 && j!=6) ){plot_pixel(x+j,y+i,0xffff);}
+    }
+    if (i < 26) {
+      plot_pixel(x, y + i, 0xffff);
+      plot_pixel(x + 1, y + i, 0xffff);
+      plot_pixel(x + 8, y + i, 0xffff);
+      plot_pixel(x + 9, y + i, 0xffff);
+    }
+  }
 }
 
-void letter_T(int x,int y){
-	for(int i=0;i<30;i++){
-		if(i<3){
-			for(int k=0;k<10;k++){
-				plot_pixel(x+k,y+i,0xffff);
-			}
-		}
-		plot_pixel(x+4,y+i,0xffff);
-		plot_pixel(x+5,y+i,0xffff);
-		plot_pixel(x+6,y+i,0xffff);	
-	}
+void letter_T(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+    if (i < 3) {
+      for (int k = 0; k < 10; k++) {
+        plot_pixel(x + k, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x + 4, y + i, 0xffff);
+    plot_pixel(x + 5, y + i, 0xffff);
+    plot_pixel(x + 6, y + i, 0xffff);
+  }
 }
-void letter_R(int x,int y){
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i<3){plot_pixel(x+j,y+i,0xffff);}
-			if( (i == 7 || i == 9) && j != 9){plot_pixel(x+j,y+i,0xffff);}
-			if(i == 8 && (j != 9 && j != 8 ) ){plot_pixel(x+j,y+i,0xffff);}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		if(i<=6 || i>=10){
-			plot_pixel(x+7,y+i,0xffff);
-			plot_pixel(x+8,y+i,0xffff);	
-			plot_pixel(x+9,y+i,0xffff);
-		}
-	}
+void letter_R(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i < 3) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if ((i == 7 || i == 9) && j != 9) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 8 && (j != 9 && j != 8)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    if (i <= 6 || i >= 10) {
+      plot_pixel(x + 7, y + i, 0xffff);
+      plot_pixel(x + 8, y + i, 0xffff);
+      plot_pixel(x + 9, y + i, 0xffff);
+    }
+  }
 
 }
 
-void letter_M(int x, int y){
-	for(int i=0;i<30;i++){
-		
-		for(int j=0;j<10;j++){
-			if( i==0 && (j<=2 || j>=8) ){plot_pixel(x+j,y+i,0xffff);}
-			if( i==1 && (j<=3 || j>=7) ){plot_pixel(x+j,y+i,0xffff);}
-			if( i==2 && j != 5){plot_pixel(x+j,y+i,0xffff);}
-			if(i==3){plot_pixel(x+j,y+i,0xffff);}
-			if( i==4 && (j>2 && j<8) ){plot_pixel(x+j,y+i,0xffff);}
-			if( i==5 && (j>3 && j<7) ){plot_pixel(x+j,y+i,0xffff);}
-			if( i==6 && j == 5){plot_pixel(x+j,y+i,0xffff);}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+2,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-		
-	}
-}
-	
-void letter_G(int x, int y){
-	for(int i=0;i<30;i++){
-		if(i<3 || i>26){
-			for(int k=0;k<10;k++){
-				plot_pixel(x+k,y+i,0xffff);
-			}
-		}
-		if(i!=3 && i!=4){
-			plot_pixel(x+8,y+i,0xffff);	
-			plot_pixel(x+9,y+i,0xffff);
-		}
-		if(i == 5 || i == 6){
-			plot_pixel(x+5,y+i,0xffff);	
-			plot_pixel(x+6,y+i,0xffff);	
-			plot_pixel(x+7,y+i,0xffff);	
-			plot_pixel(x+8,y+i,0xffff);	
-			plot_pixel(x+9,y+i,0xffff);
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		
-	}
-}
-void letter_O(int x,int y){
-	for(int i=0;i<30;i++){
-		if(i<3 || i>26){
-			for(int k=0;k<10;k++){
-				plot_pixel(x+k,y+i,0xffff);
-			}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-	}
-}
-void letter_I(int x,int y){
-	for(int i=0;i<30;i++){
-		if(i<3 || i>26){
-			for(int k=0;k<10;k++){
-				plot_pixel(x+k,y+i,0xffff);
-			}
-		}
-		plot_pixel(x+4,y+i,0xffff);
-		plot_pixel(x+5,y+i,0xffff);
-		plot_pixel(x+6,y+i,0xffff);	
-	}
-}
-void letter_N(int x,int y){
-	for(int i=0;i<30;i++){
-		if(i<3){
-			for(int k=0;k<10;k++){
-				plot_pixel(x+k,y+i,0xffff);
-			}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-	}
-}
-void letter_U(int x, int y){
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i > 26){plot_pixel(x+j,y+i,0xffff);}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-	}
+void letter_M(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+
+    for (int j = 0; j < 10; j++) {
+      if (i == 0 && (j <= 2 || j >= 8)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 1 && (j <= 3 || j >= 7)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 2 && j != 5) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 3) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 4 && (j > 2 && j < 8)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 5 && (j > 3 && j < 7)) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 6 && j == 5) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    plot_pixel(x + 2, y + i, 0xffff);
+    plot_pixel(x + 8, y + i, 0xffff);
+    plot_pixel(x + 9, y + i, 0xffff);
+
+  }
 }
 
-void letter_C(int x, int y){
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i < 3 || i > 27){plot_pixel(x+j,y+i,0xffff);}
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-	}
+void letter_G(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+    if (i < 3 || i > 26) {
+      for (int k = 0; k < 10; k++) {
+        plot_pixel(x + k, y + i, 0xffff);
+      }
+    }
+    if (i != 3 && i != 4) {
+      plot_pixel(x + 8, y + i, 0xffff);
+      plot_pixel(x + 9, y + i, 0xffff);
+    }
+    if (i == 5 || i == 6) {
+      plot_pixel(x + 5, y + i, 0xffff);
+      plot_pixel(x + 6, y + i, 0xffff);
+      plot_pixel(x + 7, y + i, 0xffff);
+      plot_pixel(x + 8, y + i, 0xffff);
+      plot_pixel(x + 9, y + i, 0xffff);
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+
+  }
+}
+void letter_O(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+    if (i < 3 || i > 26) {
+      for (int k = 0; k < 10; k++) {
+        plot_pixel(x + k, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    plot_pixel(x + 8, y + i, 0xffff);
+    plot_pixel(x + 9, y + i, 0xffff);
+  }
+}
+void letter_I(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+    if (i < 3 || i > 26) {
+      for (int k = 0; k < 10; k++) {
+        plot_pixel(x + k, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x + 4, y + i, 0xffff);
+    plot_pixel(x + 5, y + i, 0xffff);
+    plot_pixel(x + 6, y + i, 0xffff);
+  }
+}
+void letter_N(int x, int y) {
+  for (int i = 0; i < 30; i++) {
+    if (i < 3) {
+      for (int k = 0; k < 10; k++) {
+        plot_pixel(x + k, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    plot_pixel(x + 8, y + i, 0xffff);
+    plot_pixel(x + 9, y + i, 0xffff);
+  }
+}
+void letter_U(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i > 26) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    plot_pixel(x + 8, y + i, 0xffff);
+    plot_pixel(x + 9, y + i, 0xffff);
+  }
 }
 
-void letter_A(int x, int y){
-    for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i < 3){plot_pixel(x+j,y+i,0xffff);}
-			if(i == 25 || i == 26){plot_pixel(x+j,y+i,0xffff);}	
-		}
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		plot_pixel(x+8,y+i,0xffff);	
-		plot_pixel(x+9,y+i,0xffff);
-	}
+void letter_C(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i < 3 || i > 27) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+  }
+}
+
+void letter_A(int x, int y) {
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i < 3) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+      if (i == 25 || i == 26) {
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    plot_pixel(x + 8, y + i, 0xffff);
+    plot_pixel(x + 9, y + i, 0xffff);
+  }
 }
 //letter D
-void letter_D(int x, int y){
-	int shift = 7;
-	for(int i=0;i<30;i++){//rows
-		
-		for(int j=0;j<10;j++){//columns 
-			if(i < 3){ /*if first few rows*/ plot_pixel(x+j,y+i,0xffff);}		
-		}
-		
-		plot_pixel(x,y+i,0xffff);
-		plot_pixel(x+1,y+i,0xffff);
-		if(i<=24){
-			plot_pixel(x+7,y+i,0xffff);
-			plot_pixel(x+8,y+i,0xffff);	
-			plot_pixel(x+9,y+i,0xffff);
-		}
-		if(i>24){
-			plot_pixel(x+shift,y+i,0xffff);
-			plot_pixel(x+shift+1,y+i,0xffff);	
-			plot_pixel(x+(shift+2),y+i,0xffff);
-			--shift;
-		}
-	}
-	plot_pixel(x+2,y+29,0xffff);	
-	plot_pixel(x+3,y+29,0xffff);
+void letter_D(int x, int y) {
+  int shift = 7;
+  for (int i = 0; i < 30; i++) { //rows
+
+    for (int j = 0; j < 10; j++) { //columns 
+      if (i < 3) {
+        /*if first few rows*/
+        plot_pixel(x + j, y + i, 0xffff);
+      }
+    }
+
+    plot_pixel(x, y + i, 0xffff);
+    plot_pixel(x + 1, y + i, 0xffff);
+    if (i <= 24) {
+      plot_pixel(x + 7, y + i, 0xffff);
+      plot_pixel(x + 8, y + i, 0xffff);
+      plot_pixel(x + 9, y + i, 0xffff);
+    }
+    if (i > 24) {
+      plot_pixel(x + shift, y + i, 0xffff);
+      plot_pixel(x + shift + 1, y + i, 0xffff);
+      plot_pixel(x + (shift + 2), y + i, 0xffff);
+      --shift;
+    }
+  }
+  plot_pixel(x + 2, y + 29, 0xffff);
+  plot_pixel(x + 3, y + 29, 0xffff);
 }
 //---------
 
-
-void render_title(int front){ 
-	int xOff = -40;
-	if(front == 1){
-	letter_T(60+xOff,20);
-	letter_E(74+xOff,20);
-	letter_R(88+xOff,20);
-	letter_M(102+xOff,20);
-	letter_I(116+xOff,20);
-	letter_N(130+xOff,20);
-	letter_A(144+xOff,20);
-	letter_T(158+xOff,20);
-	letter_O(172+xOff,20);
-	letter_R(186+xOff,20);
-	} 
-	else if(front == 2) {
-		int xOff = 0;
-		int h = 105;
-	letter_T(99+xOff,h);
-	letter_E(113+xOff,h);
-	letter_R(127+xOff,h);
-	letter_M(141+xOff,h);
-	letter_I(159+xOff,h);
-	letter_N(173+xOff,h);
-	letter_A(187+xOff,h);
-	letter_T(201+xOff,h);
-	letter_E(215+xOff,h);
-	letter_D(229, h);
-		
-	}
-	else{
-	letter_G(99,105);
-	letter_A(113,105);
-	letter_M(127,105);
-	letter_E(141,105);
-	letter_O(159,105);
-	letter_V(173,105);
-	letter_E(187,105);
-	letter_R(201,105);
-	}
+void render_title(int front) {
+  int xOff = -40;
+  if (front == 1) {
+    letter_T(60 + xOff, 20);
+    letter_E(74 + xOff, 20);
+    letter_R(88 + xOff, 20);
+    letter_M(102 + xOff, 20);
+    letter_I(116 + xOff, 20);
+    letter_N(130 + xOff, 20);
+    letter_A(144 + xOff, 20);
+    letter_T(158 + xOff, 20);
+    letter_O(172 + xOff, 20);
+    letter_R(186 + xOff, 20);
+  } else {
+    letter_G(99, 105);
+    letter_A(113, 105);
+    letter_M(127, 105);
+    letter_E(141, 105);
+    letter_O(159, 105);
+    letter_V(173, 105);
+    letter_E(187, 105);
+    letter_R(201, 105);
+  }
 }
 
+void status_bar() {
+  drawBox(235, 5, 65, 55, GREY);
+  char buf[100];
+  char * ptr_ = "  STATUS BAR";
+  draw_text(60, 3, ptr_);
 
-void drawRobo(int locX, int locY) {
-	for (int y = 0; y < 38; y++) {
-		for (int x = 0; x < 45; x++) {
-			if (roboGun[y][x] != 65535)plot_pixel(locX + x, locY + y, roboGun[y][x]);
-		}
-	}
+  snprintf(buf, 100, "   LEVEL %d", level);
+  draw_text(60, 6, buf);
+
+  snprintf(buf, 100, "SCORE: %d", score);
+  draw_text(60, 9, buf);
+
+  snprintf(buf, 100, "HIGHSCORE: %d", highScore);
+  draw_text(60, 11, buf);
+
+  snprintf(buf, 100, "STRIKES: %d", strike);
+  draw_text(60, 13, buf);
 }
 
-void status_bar(){
-	drawBox(235, 5, 65, 55, GREY);
-	char buf[100];
-	char *ptr_ = "  STATUS BAR";
-	draw_text(60,3,ptr_);
-	
-	snprintf(buf, 100, "   LEVEL %d", level);
-	draw_text(60,6,buf);
-	
-	snprintf(buf, 100, "SCORE: %d", score);
-	draw_text(60,9,buf);
-	
-	snprintf(buf, 100, "HIGHSCORE: %d", highScore);
-	draw_text(60,11,buf);
-	
-        snprintf(buf, 100, "STRIKES: %d", strike);
-	draw_text(60,13,buf);
-}
+void info_MainPage() {
+  char * ptr_ = "INSTRUCTIONS:";
+  draw_text(5, 30, ptr_);
+  ptr_ = "1) CONTROL THE CURSOR USING 'W' 'A' 'S' 'D' ";
+  draw_text(5, 35, ptr_);
+  ptr_ = "2) START/CONTINUE USING ENTER KEY";
+  draw_text(5, 38, ptr_);
+  ptr_ = "3) PRESS SPACE TO SHOOT";
+  draw_text(5, 41, ptr_);
+  //ptr_ = "4) PRESS ENTER TO RESTART TO THE START PAGE";
+  draw_text(5, 44, ptr_);
 
-void info_MainPage(){
-	char *ptr_ = "INSTRUCTIONS:";
-	draw_text(5,30,ptr_);
-	ptr_ = "1) CONTROL THE CURSOR USING 'W' 'A' 'S' 'D' ";
-	draw_text(5,35,ptr_);
-        ptr_ = "2) START/CONTINUE USING ENTER KEY";
-	draw_text(5,38,ptr_);
-	ptr_ = "3) PRESS SPACE TO SHOOT";
-	draw_text(5,41,ptr_);
-	//ptr_ = "4) PRESS ENTER TO RESTART TO THE START PAGE";
-	draw_text(5,44,ptr_);
-	
-	//Highest Saved score
-	char buf[100];
-	snprintf(buf, 100, "HIGH SCORE: %d", highScore); // puts string into buffer
-	draw_text(5,20,buf);
+  //Highest Saved score
+  char buf[100];
+  snprintf(buf, 100, "HIGH SCORE: %d", highScore); // puts string into buffer
+  draw_text(5, 20, buf);
 }
 
 void info_GO_Page() {
-	char *ptr_ = "PRESS ENTER TO RESTART";
-	draw_text(28,41,ptr_);
-	
+  char * ptr_ = "PRESS ENTER TO RESTART";
+  draw_text(28, 41, ptr_);
+
 }
 
-
-void draw_level(int level) {
-	char buf[100];
-	//char *ptr_ = "LEVEL";
-	snprintf(buf, 100, "LEVEL %d", level);
-	draw_text(50,50,buf);
-	}
-
-void clear_text(){
-	int offset;
-	volatile char*character_buffer =(char*)FPGA_CHAR_BASE;
-	//offset = (y << 7) + x;
-	for(int i=0;i<80;i++){
-		for(int j=0;j<60;j++){
-			*(character_buffer + (j<<7)+i) =' ';
-		}
-	}
+void clear_text() {
+  volatile char * character_buffer = (char * ) FPGA_CHAR_BASE;
+  //offset = (y << 7) + x;
+  for (int i = 0; i < 80; i++) {
+    for (int j = 0; j < 60; j++) {
+      *(character_buffer + (j << 7) + i) = ' ';
+    }
+  }
 }
 
-point findShot(target* gameT) {
-	point result;
-	result.xPos = -(gameT->xPos - playerLoc.xPos)/10;
-	result.yPos = -(gameT->yPos - playerLoc.yPos)/10;
-	return result;
-}
-
-volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
+volatile int * pixel_ctrl_ptr = (int * ) 0xFF203020;
 
 void erase_screen(int color, int bg) {
-	pixel_buffer_start = *pixel_ctrl_ptr;
-	if(!bg)clear_screen(color); // pixel_buffer_start points to the pixel buffer
-	else {
-		drawBg();
-	}
+  pixel_buffer_start = * pixel_ctrl_ptr;
+  if (!bg) clear_screen(color); // pixel_buffer_start points to the pixel buffer
+  else {
+    drawBg();
+  }
 
-	/* set back pixel buffer to start of SDRAM memory */
-	clear_text();
+  /* set back pixel buffer to start of SDRAM memory */
+  clear_text();
 
-	*(pixel_ctrl_ptr + 1) = 0xC0000000;
-	pixel_buffer_start = *(pixel_ctrl_ptr + 1); 
+  *(pixel_ctrl_ptr + 1) = 0xC0000000;
+  pixel_buffer_start = * (pixel_ctrl_ptr + 1);
 
-	if(!bg)clear_screen(color);
-	else {
-		drawBg();
-	}
-	clear_text();
+  if (!bg) clear_screen(color);
+  else {
+    drawBg();
+  }
+  clear_text();
 
 }
-
-
-
 
 int main(void) {
-	start:
-	
-	
-	strike = 0;
-	score = 0;
-	level = 1;
-	int gameMode = 0;// 0 = start, 1 is game, 2 is game over, 3 game is won
-	int it = 0;
-	int flash = 0;
-	int prevScore;
-	cursor gameCursor;
-	gun gameGun;
-	gameCursor.shot = 0;
-	initGun(&gameGun);
-	initCursor(&gameCursor);
-	
-	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
-	
-    	*(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
-                                        // back buffer
-    	/* now, swap the front/back buffers, to set the front buffer location */
-    	wait_for_vsync();
-    	/* initialize a pointer to the pixel buffer, used by drawing functions */
-    	erase_screen(0, 0);
-	pixel_buffer_start = *pixel_ctrl_ptr;
-	//draw_text(gameGun.xPos,gameGun.yPos,ptr_);
-	volatile int*PS2_ptr = (int*)PS2_BASE;
-	int PS2_data, RVALID;
-	char byte1 = 0, byte2 = 0, byte3 = 0;// PS/2 mouse needs to be reset (must be already plugged in)
-	*(PS2_ptr) = 0xFF;// reset
-	
-	
-	
-	int lineRedrawX[8];
-	int lineRedrawY[8];
-	int drawRay;
-	int count = 0;
-	while(1) {
-		
-		while (!gameMode) {
-			drawTerm();
-			info_MainPage();
-			render_title(1);
-			
-			//drawRobo(160, 120);
-			while (!gameMode) {
-			PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
-			RVALID   = PS2_data & 0x8000;// extract the RVALID field
-			
-			if(RVALID) {
-				/*shift the next data byte into the display*/
-				byte1 = byte2;
-				byte2 = byte3;
-				byte3 = PS2_data & 0xFF;
+  start:
 
-				HEX_PS2(strike, 0, 0);
-				if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
-					*(PS2_ptr) = 0xF4;
-				if (byte3 == 90) {
-				  	erase_screen(CYAN, 1);
-					
-					gameMode = 1;
-					score = 0;
-					prevScore = score;
-					
-					initRobots();
-					initTargets();
-					it = 0;
-				
-				}
-		}
-			}
-		
-		} 
-		if (gameMode == 3) {
-			erase_screen(0, 0);
-			
-			status_bar();
-			render_title(2);
-			info_GO_Page();
-		
-		}
-		//GAME OVER PAGE
-		if (gameMode == 2) {
-			erase_screen(0, 0);
-			
-			status_bar();
-			render_title(0);
-			info_GO_Page();
-			while (gameMode == 2) {
-				PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
-			RVALID   = PS2_data & 0x8000;// extract the RVALID field
-				if(RVALID) {
-				/*shift the next data byte into the display*/
-				byte1 = byte2;
-				byte2 = byte3;
-				byte3 = PS2_data & 0xFF;
+    strike = 0;
+  score = 0;
+  level = 1;
+  int gameMode = 0; // 0 = start, 1 is game, 2 is game over, 3 game is won
+  int it = 0;
+  int flash = 0;
+  int prevScore;
+  cursor gameCursor;
+  gun gameGun;
+  gameCursor.shot = 0;
+  initGun( & gameGun);
+  initCursor( & gameCursor);
 
-				if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
-					*(PS2_ptr) = 0xF4;
-				if (byte3 == 90) {
-				  	erase_screen(CYAN, 1);
-					gameMode = 0;
-					it = 0;
-					level = 1;
-					goto start;
-					
-					
-				
-				}
-		}
-			}
-			score = 0;
-			strike = 0;
-		}
-		while (gameMode == 1) {
-		//print_robot();
-			
-		status_bar();
-			int checkLevel = 0;
-		for (int tg = 0; tg < level; tg++) {
-			
-			ROBOTS[tg].xPos += ROBOTS[tg].xVel;
-			ROBOTS[tg].yPos += ROBOTS[tg].yVel;
-			TARGETS[tg].xPos = ROBOTS[tg].xPos;
-			//TARGETS[tg].yPos = ROBOTS[tg].yPos;
-			TARGETS[tg].timer--;
-			checkLevel += TARGETS[tg].shot; 
-			//printf("Timer: %d\n", TARGETS[tg].timer); 
-			if (TARGETS[tg].timer <= 0) {
-				
-			if (!TARGETS[tg].timer) {
-			
-			
-				lineRedrawX[tg] = TARGETS[tg].xPos;
-				lineRedrawY[tg] = TARGETS[tg].yPos;
-			drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
-			if (drawRay  && !TARGETS[tg].shot) {
-				draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED, 0);
-				strike++;
-			}
-			} 
-			if (TARGETS[tg].timer == -6 || TARGETS[tg].timer == -7) {
-				drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
-				if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN, 1);
-			}
-			if (TARGETS[tg].timer == -7) {
-				TARGETS[tg].timer = 400;
-			}
+  /*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 
-			}
-	
-			//if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
-			if (ROBOTS[tg].xPos <= -10) ROBOTS[tg].xPos = 330; 
-		}
-	
-		PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
-		RVALID   = PS2_data & 0x8000;// extract the RVALID field
-		if(RVALID) {
-			/*shift the next data byte into the display*/
-			byte1 = byte2;
-			byte2 = byte3;
-			byte3 = PS2_data & 0xFF;
-			
-			if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
-				*(PS2_ptr) = 0xF4;
-			//If A is pressed
-				if (byte3 == 28) {
-				gameCursor.xPos-=5;
-				if (gameCursor.xPos < 0) {
-					gameCursor.xPos = 0;
-				}
-			}
-			//If D is pressed
-			if (byte3 == 35) {
-				gameCursor.xPos+=5;
-				if (gameCursor.xPos > RESOLUTION_X-1) {
-					gameCursor.xPos = RESOLUTION_X-1;
-				}
-			}
-			//If W is pressed
-			if (byte3 == 27) {
-				gameCursor.yPos+=5;
-				if (gameCursor.yPos > 150) {
-					gameCursor.yPos = 150;
-				}
-			}
-			//If S is pressed
-			if (byte3 == 29) {
-				gameCursor.yPos-=5;
-				if (gameCursor.yPos < 5) {
-					gameCursor.yPos = 5;
-				}
-			}
-			//If space is pressed
-			if (byte3 == 41) {	
-				if (!gameCursor.shot) gameCursor.shot = 1;
-				checkShot(&gameCursor);
-				flash = 4;
-				
-			}
-			//Enter pressed
-			if (byte3 == 90) {	
-				gameMode = 0;
-				strike = 0;
-				score = 0;
-				if (highScore < score) highScore = score;
-				erase_screen(0, 0);
-				goto start;
-				
-			}
-			
+  *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
+  // back buffer
+  /* now, swap the front/back buffers, to set the front buffer location */
+  wait_for_vsync();
+  /* initialize a pointer to the pixel buffer, used by drawing functions */
+  erase_screen(0, 0);
+  pixel_buffer_start = * pixel_ctrl_ptr;
+  //draw_text(gameGun.xPos,gameGun.yPos,ptr_);
+  volatile int * PS2_ptr = (int * ) PS2_BASE;
+  int PS2_data,
+  RVALID;
+  char byte1 = 0,
+  byte2 = 0,
+  byte3 = 0; // PS/2 mouse needs to be reset (must be already plugged in)
+  *(PS2_ptr) = 0xFF; // reset
 
-			
-		}
-		score = prevScore;
-		for (int t = 0; t < level && gameMode == 1; t++) {
-			score += TARGETS[t].shot;
-			
-			renderRobot(&ROBOTS[t], it > 1);
-			renderTarget(&TARGETS[t], it > 1);
-			
-			
-		}
-		if (gameMode == 1) 
-		{
-			renderCursor(&gameCursor, it > 1, flash);
-			renderGun(it, 0);
-			
-			if(flash)flash--;
-		}
-		
-		if (strike == 5) {
-			gameMode = 2;
-			if (highScore < score) highScore = score;
-			erase_screen(0, 0);
-			
-		}
-			if (checkLevel == level) {
-				level++;
-				//if (level >= 5) gameMode = 3;
-				prevScore = score;
-				initRobots();
-				initTargets();
-				
-			}
-		
-		it++;
-		wait_for_vsync();
-         // swap front and back buffers on VGA vertical sync
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-		
+  int lineRedrawX[8];
+  int lineRedrawY[8];
+  int drawRay;
+  while (1) {
 
-		
-	}
-	}
+    while (!gameMode) {
+      drawTerm();
+      info_MainPage();
+      render_title(1);
+
+      while (!gameMode) {
+        PS2_data = * (PS2_ptr); // read the Data register in the PS/2 
+        RVALID = PS2_data & 0x8000; // extract the RVALID field
+
+        if (RVALID) {
+          /*shift the next data byte into the display*/
+          byte1 = byte2;
+          byte2 = byte3;
+          byte3 = PS2_data & 0xFF;
+
+          if ((byte2 == (char) 0xAA) && (byte3 == (char) 0x00)) // mouse inserted; initialize sending of data
+            *
+            (PS2_ptr) = 0xF4;
+          if (byte3 == 90) {
+            erase_screen(CYAN, 1);
+
+            gameMode = 1;
+            score = 0;
+            prevScore = score;
+
+            initRobots();
+            initTargets();
+            it = 0;
+
+          }
+        }
+      }
+
+    }
+    if (gameMode == 3) {
+      erase_screen(0, 0);
+
+      status_bar();
+      render_title(2);
+      info_GO_Page();
+
+    }
+    //GAME OVER PAGE
+    if (gameMode == 2) {
+      erase_screen(0, 0);
+
+      status_bar();
+      render_title(0);
+      info_GO_Page();
+      while (gameMode == 2) {
+        PS2_data = * (PS2_ptr); // read the Data register in the PS/2 
+        RVALID = PS2_data & 0x8000; // extract the RVALID field
+        if (RVALID) {
+          /*shift the next data byte into the display*/
+          byte1 = byte2;
+          byte2 = byte3;
+          byte3 = PS2_data & 0xFF;
+
+          if ((byte2 == (char) 0xAA) && (byte3 == (char) 0x00)) // mouse inserted; initialize sending of data
+            *
+            (PS2_ptr) = 0xF4;
+          if (byte3 == 90) {
+            erase_screen(CYAN, 1);
+            gameMode = 0;
+            it = 0;
+            level = 1;
+            goto start;
+
+          }
+        }
+      }
+      score = 0;
+      strike = 0;
+    }
+    while (gameMode == 1) {
+      //print_robot();
+
+      status_bar();
+      int checkLevel = 0;
+      for (int tg = 0; tg < level; tg++) {
+
+        ROBOTS[tg].xPos += ROBOTS[tg].xVel;
+        ROBOTS[tg].yPos += ROBOTS[tg].yVel;
+        TARGETS[tg].xPos = ROBOTS[tg].xPos;
+        //TARGETS[tg].yPos = ROBOTS[tg].yPos;
+        TARGETS[tg].timer--;
+        checkLevel += TARGETS[tg].shot;
+        //printf("Timer: %d\n", TARGETS[tg].timer); 
+        if (TARGETS[tg].timer <= 0) {
+
+          if (!TARGETS[tg].timer) {
+
+            lineRedrawX[tg] = TARGETS[tg].xPos;
+            lineRedrawY[tg] = TARGETS[tg].yPos;
+            drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
+            if (drawRay && !TARGETS[tg].shot) {
+              draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED, 0);
+              strike++;
+            }
+          }
+          if (TARGETS[tg].timer == -6 || TARGETS[tg].timer == -7) {
+            drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
+            if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, CYAN, 1);
+          }
+          if (TARGETS[tg].timer == -7) {
+            TARGETS[tg].timer = 400;
+          }
+
+        }
+
+        //if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
+        if (ROBOTS[tg].xPos <= -10) ROBOTS[tg].xPos = 330;
+      }
+
+      PS2_data = * (PS2_ptr); // read the Data register in the PS/2 
+      RVALID = PS2_data & 0x8000; // extract the RVALID field
+      if (RVALID) {
+        /*shift the next data byte into the display*/
+        byte1 = byte2;
+        byte2 = byte3;
+        byte3 = PS2_data & 0xFF;
+
+        if ((byte2 == (char) 0xAA) && (byte3 == (char) 0x00)) // mouse inserted; initialize sending of data
+          *
+          (PS2_ptr) = 0xF4;
+        //If A is pressed
+        if (byte3 == 28) {
+          gameCursor.xPos -= 5;
+          if (gameCursor.xPos < 0) {
+            gameCursor.xPos = 0;
+          }
+        }
+        //If D is pressed
+        if (byte3 == 35) {
+          gameCursor.xPos += 5;
+          if (gameCursor.xPos > RESOLUTION_X - 1) {
+            gameCursor.xPos = RESOLUTION_X - 1;
+          }
+        }
+        //If W is pressed
+        if (byte3 == 27) {
+          gameCursor.yPos += 5;
+          if (gameCursor.yPos > 150) {
+            gameCursor.yPos = 150;
+          }
+        }
+        //If S is pressed
+        if (byte3 == 29) {
+          gameCursor.yPos -= 5;
+          if (gameCursor.yPos < 5) {
+            gameCursor.yPos = 5;
+          }
+        }
+        //If space is pressed
+        if (byte3 == 41) {
+          if (!gameCursor.shot) gameCursor.shot = 1;
+          checkShot( & gameCursor);
+          flash = 4;
+
+        }
+        //Enter pressed
+        if (byte3 == 90) {
+          gameMode = 0;
+          strike = 0;
+          score = 0;
+          if (highScore < score) highScore = score;
+          erase_screen(0, 0);
+          goto start;
+
+        }
+
+      }
+      score = prevScore;
+      for (int t = 0; t < level && gameMode == 1; t++) {
+        score += TARGETS[t].shot;
+
+        renderRobot( & ROBOTS[t], it > 1);
+        renderTarget( & TARGETS[t], it > 1);
+
+      }
+      if (gameMode == 1) {
+        renderCursor( & gameCursor, it > 1, flash);
+        renderGun(it, 0);
+
+        if (flash) flash--;
+      }
+
+      if (strike == 5) {
+        gameMode = 2;
+        if (highScore < score) highScore = score;
+        erase_screen(0, 0);
+
+      }
+      if (checkLevel == level) {
+        level++;
+        //if (level >= 5) gameMode = 3;
+        prevScore = score;
+        initRobots();
+        initTargets();
+
+      }
+
+      it++;
+      wait_for_vsync();
+      // swap front and back buffers on VGA vertical sync
+      pixel_buffer_start = * (pixel_ctrl_ptr + 1);
+
+    }
+  }
 }
-
-void HEX_PS2(char b1,char b2,char b3) {
-	volatile int*HEX3_HEX0_ptr = (int*)HEX3_HEX0_BASE;
-	volatile int*HEX5_HEX4_ptr = (int*)HEX5_HEX4_BASE;/*SEVEN_SEGMENT_DECODE_TABLE gives the on/off settings for all segments in*a single 7-seg display in the DE1-SoC Computer, for the hex digits 0 - F*/
-	unsigned char seven_seg_decode_table[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,0x7F, 0x67, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71};
-	unsigned char hex_segs[] = {0, 0, 0, 0, 0, 0, 0, 0};
-	unsigned int shift_buffer, nibble;
-	unsigned char code;
-	int i;
-	shift_buffer = (b1 << 16) | (b2 << 8) | b3;
-	for(i = 0; i < 6; ++i) {
-		nibble = shift_buffer & 0x0000000F;// character is in rightmost nibble
-		code   = seven_seg_decode_table[nibble];
-		hex_segs[i]  = code;
-		shift_buffer = shift_buffer >> 4;
-	}/*drive the hex displays*/
-	*(HEX3_HEX0_ptr) =*(int*)(hex_segs);
-	*(HEX5_HEX4_ptr) =*(int*)(hex_segs + 4);
-}
-
-
-
-
-
-
-
-
-
-
-/* This program demonstrates memory-mapped I/O using C code * * It performs the following:  * 1. displays SW on LEDR * 2. displays hex digits corresponding to SW on HEX3-0 */
-char seg7[] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x67, 0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71};
-void HEX(int val) {/* Declare volatile pointers to I/O registers (volatile means that IO load * and store instructions will be used to access these pointer locations,  * instead of regular memory loads and stores)*/
-	volatile int * LEDR_ptr = (int *)0xFF200000;// red LED address
-	volatile int * SW_ptr= (int *)0xFF200040;// SW slide switch address
-	volatile int * HEX3_0_ptr= (int *)0xFF200020;// HEX3_HEX0 address
-	int value;
-	while(1) {
-		val++;
-		
-		value = *(SW_ptr);// read the SW slider switch values
-						*(LEDR_ptr) = val; // light up the red LEDs
-		int hun = val/100;
-		int tens = (val - hun*100)/10;
-		int ones = (val - tens*10);
-						*(HEX3_0_ptr) = seg7[ones] | seg7[tens] << 8 | seg7[hun] << 16;}}
-	
-	
-
