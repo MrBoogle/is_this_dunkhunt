@@ -1271,6 +1271,7 @@ int checkShot(cursor *check) {
 			ROBOTS[i].shot = 1;
 			
 			ROBOTS[i].xVel = 0;
+			ROBOTS[i].xPos = 400;
 			return 1;
 		} 
 	}
