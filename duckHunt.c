@@ -1810,15 +1810,10 @@ int main(void) {
 	int flash = 0;
 	cursor gameCursor;
 	gun gameGun;
-	gameCursor.xPos = RESOLUTION_X/2;
-	gameCursor.yPos = RESOLUTION_Y/2;
 	gameCursor.shot = 0;
-	initCursor(&gameCursor);
 	initGun(&gameGun);
 	robot gameRobot;
 	initRobot(&gameRobot, 200);
-	initTargets();
-	initBullets();
 	
 	/*Declare volatile pointers to I/O registers (volatile means that IO loadand store instructions will be used to access these pointer locations,instead of regular memory loads and stores)*/
 	
@@ -1865,6 +1860,9 @@ int main(void) {
 				  	erase_screen(CYAN, 1);
 					
 					gameMode = 1;
+					initTargets();
+					//initCursor(&gameCursor);
+					it = 0;
 				
 				}
 		}
@@ -1878,6 +1876,26 @@ int main(void) {
 			render_title(0);
 			
 			while (gameMode == 2) {
+				PS2_data =*(PS2_ptr);// read the Data register in the PS/2 
+			RVALID   = PS2_data & 0x8000;// extract the RVALID field
+				if(RVALID) {
+				/*shift the next data byte into the display*/
+				byte1 = byte2;
+				byte2 = byte3;
+				byte3 = PS2_data & 0xFF;
+
+				if((byte2 == (char)0xAA) && (byte3 == (char)0x00))// mouse inserted; initialize sending of data
+					*(PS2_ptr) = 0xF4;
+				if (byte3 == 90) {
+				  	erase_screen(CYAN, 1);
+					
+					gameMode = 1;
+					initTargets();
+					//initCursor(&gameCursor);
+					it = 0;
+				
+				}
+		}
 			}
 			score = 0;
 			strike = 0;
@@ -1885,22 +1903,25 @@ int main(void) {
 		while (gameMode == 1) {
 		
 		status_bar();
+			int checkLevel = 0;
 		for (int tg = 0; tg < level; tg++) {
 			TARGETS[tg].xPos += TARGETS[tg].xVel;
 			TARGETS[tg].yPos += TARGETS[tg].yVel;
 			TARGETS[tg].timer--;
+			checkLevel += TARGETS[tg].shot; 
 			//printf("Timer: %d\n", TARGETS[tg].timer); 
-			if (TARGETS[tg].timer <= 0 && !TARGETS[tg].shot) {
-				BULLETS[tg].xVel = findShot(&TARGETS[tg]).xPos;
-				BULLETS[tg].yVel = findShot(&TARGETS[tg]).yPos;
+			if (TARGETS[tg].timer <= 0) {
+				
 			if (!TARGETS[tg].timer) {
-			strike++;
-			BULLETS[tg].xPos = TARGETS[tg].xPos;
-			BULLETS[tg].yPos = TARGETS[tg].yPos;
+			
+			
 				lineRedrawX[tg] = TARGETS[tg].xPos;
 				lineRedrawY[tg] = TARGETS[tg].yPos;
 			drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
-			if (drawRay) draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED, 0);
+			if (drawRay  && !TARGETS[tg].shot) {
+				draw_line(lineRedrawX[tg], lineRedrawY[tg], gameGun.xPos, gameGun.yPos, RED, 0);
+				strike++;
+			}
 			} 
 			if (TARGETS[tg].timer == -6 || TARGETS[tg].timer == -7) {
 				drawRay = lineRedrawX[tg] <= 320 && lineRedrawX[tg] >= 0 && lineRedrawY[tg] <= 240 && lineRedrawY[tg] >= 0;
@@ -1908,8 +1929,8 @@ int main(void) {
 			}
 
 			}
-			if (TARGETS[tg].timer == 0) BULLETS[tg].shot = 1;
-			//if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
+	
+			if (TARGETS[tg].xPos == 0 || TARGETS[tg].xPos == 320-5) TARGETS[tg].xVel *= -1;
 			if (TARGETS[tg].yPos == 0 || TARGETS[tg].yPos == 240-5) TARGETS[tg].yVel *= -1; 
 		}
 	
@@ -1961,8 +1982,12 @@ int main(void) {
 				flash = 1;
 				
 			}
-			if (byte3 == 118) {	
+			//Esc pressed
+			if (0/*byte3 == 118*/) {	
 				gameMode = 0;
+				strike = 0;
+				score = 0;
+				if (highScore < score) highScore = score;
 				erase_screen(0, 0);
 				
 			}
@@ -1977,13 +2002,13 @@ int main(void) {
 			
 			
 		}
-		for (int t = 0; t < level; t++) {
+		for (int t = 0; t < level && gameMode == 1; t++) {
 			renderTarget(&TARGETS[t], it > 1);
-			//renderBullet(&BULLETS[t], it > 1);
+			
 			
 		}
-		renderCursor(&gameCursor, it > 1);
-			renderGun(it > 1, flash);
+		if (gameMode == 1) renderCursor(&gameCursor, it > 1);
+			//renderGun(it > 1, flash);
 			flash = 0;
 		
 		if (strike == 5) {
@@ -1992,6 +2017,10 @@ int main(void) {
 			erase_screen(0, 0);
 			
 		}
+			if (checkLevel == level) {
+				level++;
+				initTargets();
+			}
 		
 		it++;
 		wait_for_vsync();
