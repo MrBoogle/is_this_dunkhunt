@@ -1812,6 +1812,7 @@ int main(void) {
 	gun gameGun;
 	gameCursor.shot = 0;
 	initGun(&gameGun);
+	initCursor(&gameCursor);
 	robot gameRobot;
 	initRobot(&gameRobot, 200);
 	
