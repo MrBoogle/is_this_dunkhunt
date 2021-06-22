@@ -12,7 +12,7 @@ The rules are simple: shoot down the robots or risk losing a life if shot. The g
 
 Once the program is opened on CPulator and compiled the visuals will be displayed in the VGA display present on the right panel. The user inputs keystrokes via the PS/2 keyboard or mouse module. For a more immersive experience, it is recommended that the VGA display is scaled to 1 and shown in a separate box (available when the arrow on the left top corner of the VGA display is clicked).
 
-![Title Screen](https://github.com/MrBoogle/terminator/blob/main/gameTitleScreen.png)
+![Title Screen](https://github.com/MrBoogle/terminator/blob/main/terminatorTitleScreen.png)
 
 Compile and run to begin playing the game. This will present the main screen of the game.
 Carefully read through the instructions present on the screen and press Enter to begin playing.
