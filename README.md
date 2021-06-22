@@ -12,3 +12,11 @@ The rules are simple: shoot down the robots or risk losing a life if shot. The g
 
 Once the program is opened on CPulator and compiled the visuals will be displayed in the VGA display present on the right panel. The user inputs keystrokes via the PS/2 keyboard or mouse module. For a more immersive experience, it is recommended that the VGA display is scaled to 1 and shown in a separate box (available when the arrow on the left top corner of the VGA display is clicked).
 
+![Title Screen]()
+
+Compile and run to begin playing the game. This will present the main screen of the game.
+Carefully read through the instructions present on the screen and press Enter to begin playing.
+The W, A, S, and D keys are used to move the cursor and the space bar is used to shoot. On the game page information about current level, strikes, high score and the current score are displayed. 
+
+![Game Screen]()
+You can restart the game at any time by pressing Enter. Hope you enjoy our game, and find that Terminator tests your accuracy and tactical skills. Enjoy!!!!!
