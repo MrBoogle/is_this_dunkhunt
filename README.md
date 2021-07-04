@@ -19,4 +19,5 @@ Carefully read through the instructions present on the screen and press Enter to
 The W, A, S, and D keys are used to move the cursor and the space bar is used to shoot. On the game page information about current level, strikes, high score and the current score are displayed. 
 
 ![Game Screen](https://github.com/MrBoogle/terminator/blob/main/gameScreen.png)
+
 You can restart the game at any time by pressing Enter. Hope you enjoy our game, and find that Terminator tests your accuracy and tactical skills. Enjoy!!!!!
